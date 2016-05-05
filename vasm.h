@@ -109,9 +109,9 @@ typedef union _instr_r {
 
 // scall, sbreak, csrrw, csrrc, csrrs, csrrwi, csrrci, csrrso
 #define OPCODE_SYS    0x73
-#define FUNCT_ECALL   0   // imm11_0 = 000000000000
-#define FUNCT_EBREAK  0   // imm11_0 = 000000000001
-
+#define FUNCT_SYS     0    // imm11_0 = 000000000000
+#define FUNCT_SBREAK  0   // imm11_0 = 000000000001
+#define FUNCT_CCSRD   2   // imm11_0 = 1100 0000 0000
 typedef union _instr_i {
     uint32_t instruction;
     struct {
@@ -236,31 +236,55 @@ typedef union _instr_uj {
 } instr_uj;
 
 // Instruction symbol index
-#define INSTR_ADD_SI 0
-#define INSTR_SUB_SI 1
-#define INSTR_SLL_SI 2
-#define INSTR_SLT_SI 3
-#define INSTR_SLTU_SI 4
-#define INSTR_XOR_SI 5
-#define INSTR_SRL_SI 6
-#define INSTR_SRA_SI 7
-#define INSTR_OR_SI 8
-#define INSTR_AND_SI 9
-#define INSTR_ADDI_SI 10
-#define INSTR_SLLI_SI 11
-#define INSTR_SLTI_SI 12
-#define INSTR_SLTIU_SI 13
-#define INSTR_XORI_SI 14
-#define INSTR_SRLI_SI 15
-#define INSTR_SRAI_SI 16
-#define INSTR_ORI_SI 17
-#define INSTR_ANDI_SI 18
-#define INSTR_BEQ_SI 19
-#define INSTR_BNE_SI 20
-#define INSTR_BLT_SI 21
-#define INSTR_BLTU_SI 22
-#define INSTR_BGE_SI 23
-#define INSTR_BGEU_SI 24
+enum {
+    INSTR_add_SI,
+    INSTR_sub_SI,
+    INSTR_sll_SI,
+    INSTR_slt_SI,
+    INSTR_sltu_SI,
+    INSTR_xor_SI,
+    INSTR_srl_SI,
+    INSTR_sra_SI,
+    INSTR_or_SI,
+    INSTR_and_SI,
+    INSTR_addi_SI,
+    INSTR_slli_SI,
+    INSTR_slti_SI,
+    INSTR_sltiu_SI,
+    INSTR_xori_SI,
+    INSTR_srli_SI,
+    INSTR_srai_SI,
+    INSTR_ori_SI,
+    INSTR_andi_SI,
+    INSTR_lui_SI,
+    INSTR_auipc_SI,
+    INSTR_lb_SI,
+    INSTR_lbu_SI,
+    INSTR_lh_SI,
+    INSTR_lhu_SI,
+    INSTR_lw_SI,
+    INSTR_sb_SI,
+    INSTR_sh_SI,
+    INSTR_sw_SI,
+    INSTR_fence_SI,
+    INSTR_fence_i_SI,
+    INSTR_beq_SI,
+    INSTR_bne_SI,
+    INSTR_blt_SI,
+    INSTR_bltu_SI,
+    INSTR_bge_SI,
+    INSTR_bgeu_SI,
+    INSTR_jal_SI,
+    INSTR_jalr_SI,
+    INSTR_scall_SI,
+    INSTR_sbreak_SI,
+    INSTR_rdcycle_SI,
+    INSTR_rdcycleh_SI,
+    INSTR_rdtime_SI,
+    INSTR_rdtimeh_SI,
+    INSTR_rdinstret_SI,
+    INSTR_rdinstreth_SI
+};
 
 #if defined(RV32C)
 

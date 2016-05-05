@@ -19,7 +19,9 @@ int scan(char* ptr, char* dst, token_t* tokens, size_t max_tokens)
 	while(isspace(*ptr)) ptr++;
 	if ((ptr[0]=='/') && (ptr[1]=='/'))
 	    return i;
-	if (ptr[0] == '\0') 
+	if (ptr[0]=='#')
+	    return i;
+	if (ptr[0]=='\0') 
 	    return i;
 	if (isalpha(*ptr) || (*ptr == '_')) {
 	    tokens[i].c = TOKEN_SYMBOL;
@@ -82,6 +84,7 @@ int scan(char* ptr, char* dst, token_t* tokens, size_t max_tokens)
 	else if (is_sign(ptr[0]) && isdigit(ptr[1])) {
 	    tokens[i].c = TOKEN_NUMBER;
 	    tokens[i].name = dst;
+	    *dst++ = *ptr++;
 	    while(isdigit(*ptr))
 		*dst++ = *ptr++;
 	    *dst++ = '\0';

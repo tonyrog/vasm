@@ -63,18 +63,34 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 		register_abi_name(ip->rs2));
 	break;
     }
+
     case OPCODE_IMM: {  // I-type
 	instr_i* ip = (instr_i*) p;
+	int imm;
+	int tab = 0x00;
 	fprintf(f, "%s", TAB);
-	switch(ip->imm11_0) {
+	switch(ip->funct3) {
+	case FUNCT_SLLI:
+	    imm = ip->imm11_0>>4;
+	    break;
+	case FUNCT_SRLI:
+	    imm = ip->imm11_0 & 0x1f;
+	    if ((ip->imm11_0 >> 4) == 0x20)
+		tab = 0x20;
+	    break;
+	default:
+	    imm = ip->imm11_0;
+	    break;
+	}
+	switch(tab) {
 	case 0x00: fprintf(f, "%s", op_imm_name_00[ip->funct3]); break;
 	case 0x20: fprintf(f, "%s", op_imm_name_20[ip->funct3]); break;
-	default: fprintf(f, "%s", "???"); break;
+	default: fprintf(f, "%s imm11_0=%x", "???", ip->imm11_0); break;
 	}
 	fprintf(f, " %s, %s, %d\n",
 		register_abi_name(ip->rd), 
 		register_abi_name(ip->rs1),
-		ip->imm11_0);
+		imm);
 	break;
     }
 
@@ -82,10 +98,10 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 	instr_i* ip = (instr_i*) p;
 	fprintf(f, "%s", TAB);
 	fprintf(f, "%s", op_load_name[ip->funct3]);
-	fprintf(f, " %s, %s, %d\n",
+	fprintf(f, " %s, %d(%s)\n",
 		register_abi_name(ip->rd), 
-		register_abi_name(ip->rs1),
-		ip->imm11_0);
+		ip->imm11_0,
+		register_abi_name(ip->rs1));
 	break;
     }
     case OPCODE_FENCE:  {  // I-type

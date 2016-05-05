@@ -55,13 +55,13 @@ static void* inflate(unsigned_t addr, void* mem, void* imem)
 #endif    
 
 // when implementing compressed instructions are 16bit aligned
-unsigned_t emu(vasm_rt_t* ctx,unsigned_t addr, void* mem)
+unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 {
 #if defined(RV32C) || defined(RV64C)
     instr_t temp;
-    void* p = inflate(addr, mem, &temp);
+    void* p = inflate(pc, mem, &temp);
 #else
-    void* p = (void*) ((uint8_t*)mem + addr);
+    void* p = (void*) ((uint8_t*)mem + pc);
 #endif
     switch(((instr_t*)p)->opcode) {
     case OPCODE_ARITH: {  // R-type
@@ -151,14 +151,20 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t addr, void* mem)
 	break;
     case OPCODE_BRANCH: // SB-type
 	break;
-    case OPCODE_LUI:    // U-type
+    case OPCODE_LUI:  { // U-type
+	instr_u* ip = (instr_u*) p;
+	ctx->reg[ip->rd] = (ip->imm31_12 << 12);
 	break;
-    case OPCODE_AUIPC:  // U-type
+    }
+    case OPCODE_AUIPC: { // U-type
+	instr_u* ip = (instr_u*) p;
+	ctx->reg[ip->rd] = ctx->pc + (ip->imm31_12 << 12);
 	break;
+    }
     case OPCODE_JAL:    // Uj-type
 	break;
     }
-    return addr+4;
+    return pc+4;
 }
 
 void dump_regs(FILE* f, vasm_rt_t* ctx)
@@ -174,12 +180,12 @@ void dump_regs(FILE* f, vasm_rt_t* ctx)
     }
 }
 
-void run(FILE* f, symbol_table_t* symtab, vasm_rt_t* ctx, unsigned_t addr)
+void run(FILE* f, symbol_table_t* symtab, vasm_rt_t* ctx, unsigned_t pc)
 {
     dump_regs(f, ctx);
-    while(addr < ctx->waddr) {
-	disasm_instr(f, symtab, addr, ctx->mem);
-	addr = emu(ctx, addr, ctx->mem);
+    while(pc < ctx->waddr) {
+	disasm_instr(f, symtab, pc, ctx->mem);
+	pc = emu(ctx, pc, ctx->mem);
 	dump_regs(f, ctx);
     }
 }

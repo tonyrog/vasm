@@ -1,41 +1,23 @@
 #include <ctype.h>
 #include "vasm.h"
 
+#define HARD_DEBUG
+
 // static symbols
+
+#define SYMREG_XI(i, nm) \
+    [(i)] = { .next = &symreg_xi[(i)+1], .flags = SYMBOL_FLAG_REG, .index = (i), .name = (nm)  }
 
 symbol_t symreg_xi[] =
 {
-    [0] = { .next = &symreg_xi[1], .flags = SYMBOL_FLAG_REG, .index = 0, .name = "x0"  },
-    [1] = { .next = &symreg_xi[2], .flags = SYMBOL_FLAG_REG, .index = 1, .name = "x1"  },
-    [2] = { .next = &symreg_xi[3], .flags = SYMBOL_FLAG_REG, .index = 2, .name = "x2"  },
-    [3] = { .next = &symreg_xi[4], .flags = SYMBOL_FLAG_REG, .index = 3, .name = "x3"  },
-    [4] = { .next = &symreg_xi[5], .flags = SYMBOL_FLAG_REG, .index = 4, .name = "x4"  },
-    [5] = { .next = &symreg_xi[6], .flags = SYMBOL_FLAG_REG, .index = 5, .name = "x5"  },
-    [6] = { .next = &symreg_xi[7], .flags = SYMBOL_FLAG_REG, .index = 6, .name = "x6"  },
-    [7] = { .next = &symreg_xi[8], .flags = SYMBOL_FLAG_REG, .index = 7, .name = "x7"  },
-    [8] = { .next = &symreg_xi[9], .flags = SYMBOL_FLAG_REG, .index = 8, .name = "x8"  },
-    [9] = { .next = &symreg_xi[10], .flags = SYMBOL_FLAG_REG, .index = 9, .name = "x9"  },
-    [10] = { .next = &symreg_xi[11], .flags = SYMBOL_FLAG_REG, .index = 10, .name = "x10"  },
-    [11] = { .next = &symreg_xi[12], .flags = SYMBOL_FLAG_REG, .index = 11, .name = "x11"  },
-    [12] = { .next = &symreg_xi[13], .flags = SYMBOL_FLAG_REG, .index = 12, .name = "x12"  },
-    [13] = { .next = &symreg_xi[14], .flags = SYMBOL_FLAG_REG, .index = 13, .name = "x13"  },
-    [14] = { .next = &symreg_xi[15], .flags = SYMBOL_FLAG_REG, .index = 14, .name = "x14"  },
-    [15] = { .next = &symreg_xi[16], .flags = SYMBOL_FLAG_REG, .index = 15, .name = "x15"  },
-    [16] = { .next = &symreg_xi[17], .flags = SYMBOL_FLAG_REG, .index = 16, .name = "x16"  },
-    [17] = { .next = &symreg_xi[18], .flags = SYMBOL_FLAG_REG, .index = 17, .name = "x17"  },
-    [18] = { .next = &symreg_xi[19], .flags = SYMBOL_FLAG_REG, .index = 18, .name = "x18"  },
-    [19] = { .next = &symreg_xi[20], .flags = SYMBOL_FLAG_REG, .index = 19, .name = "x19"  },
-    [20] = { .next = &symreg_xi[21], .flags = SYMBOL_FLAG_REG, .index = 20, .name = "x20"  },
-    [21] = { .next = &symreg_xi[22], .flags = SYMBOL_FLAG_REG, .index = 21, .name = "x21"  },
-    [22] = { .next = &symreg_xi[23], .flags = SYMBOL_FLAG_REG, .index = 22, .name = "x22"  },
-    [23] = { .next = &symreg_xi[24], .flags = SYMBOL_FLAG_REG, .index = 23, .name = "x23"  },
-    [24] = { .next = &symreg_xi[25], .flags = SYMBOL_FLAG_REG, .index = 24, .name = "x24"  },
-    [25] = { .next = &symreg_xi[26], .flags = SYMBOL_FLAG_REG, .index = 25, .name = "x25"  },
-    [26] = { .next = &symreg_xi[27], .flags = SYMBOL_FLAG_REG, .index = 26, .name = "x26"  },
-    [27] = { .next = &symreg_xi[28], .flags = SYMBOL_FLAG_REG, .index = 27, .name = "x27"  },
-    [28] = { .next = &symreg_xi[29], .flags = SYMBOL_FLAG_REG, .index = 28, .name = "x28"  },
-    [29] = { .next = &symreg_xi[30], .flags = SYMBOL_FLAG_REG, .index = 29, .name = "x29"  },
-    [30] = { .next = &symreg_xi[31], .flags = SYMBOL_FLAG_REG, .index = 30, .name = "x30"  },
+    SYMREG_XI(0, "x0"),   SYMREG_XI(1, "x1"),   SYMREG_XI(2, "x2"),   SYMREG_XI(3, "x3"),
+    SYMREG_XI(4, "x4"),   SYMREG_XI(5, "x5"),   SYMREG_XI(6, "x6"),   SYMREG_XI(7, "x7"),
+    SYMREG_XI(8, "x8"),   SYMREG_XI(9, "x9"),   SYMREG_XI(10, "x10"), SYMREG_XI(11, "x11"),
+    SYMREG_XI(12, "x12"), SYMREG_XI(13, "x13"), SYMREG_XI(14, "x14"), SYMREG_XI(15, "x15"),
+    SYMREG_XI(16, "x16"), SYMREG_XI(17, "x17"), SYMREG_XI(18, "x18"), SYMREG_XI(19, "x19"),
+    SYMREG_XI(20, "x20"), SYMREG_XI(21, "x21"), SYMREG_XI(22, "x22"), SYMREG_XI(23, "x23"),
+    SYMREG_XI(24, "x24"), SYMREG_XI(25, "x25"), SYMREG_XI(26, "x26"), SYMREG_XI(27, "x27"),
+    SYMREG_XI(28, "x28"), SYMREG_XI(29, "x29"), SYMREG_XI(30, "x30"),
     [31] = { .next = 0, .flags = SYMBOL_FLAG_REG, .index = 31, .name = "x31"  }
 };
 
@@ -44,39 +26,20 @@ char* register_xi_name(int r)
     return symreg_xi[r].name;
 }
 
+#define SYMREG_ABI(i, nm) \
+    [(i)] = { .next = &symreg_abi[(i)+1], .flags = SYMBOL_FLAG_REG, .index = (i), .name = (nm)  }
+
 symbol_t symreg_abi[] = 
 {
-    [0] = { .next = &symreg_abi[1], .flags = SYMBOL_FLAG_REG, .index = 0, .name = "zero"  },
-    [1] = { .next = &symreg_abi[2], .flags = SYMBOL_FLAG_REG, .index = 1, .name = "ra"  },
-    [2] = { .next = &symreg_abi[3], .flags = SYMBOL_FLAG_REG, .index = 2, .name = "fp"  },
-    [3] = { .next = &symreg_abi[4], .flags = SYMBOL_FLAG_REG, .index = 3, .name = "s1"  },
-    [4] = { .next = &symreg_abi[5], .flags = SYMBOL_FLAG_REG, .index = 4, .name = "s2"  },
-    [5] = { .next = &symreg_abi[6], .flags = SYMBOL_FLAG_REG, .index = 5, .name = "s3"  },
-    [6] = { .next = &symreg_abi[7], .flags = SYMBOL_FLAG_REG, .index = 6, .name = "s4"  },
-    [7] = { .next = &symreg_abi[8], .flags = SYMBOL_FLAG_REG, .index = 7, .name = "s5"  },
-    [8] = { .next = &symreg_abi[9], .flags = SYMBOL_FLAG_REG, .index = 8, .name = "s6"  },
-    [9] = { .next = &symreg_abi[10], .flags = SYMBOL_FLAG_REG, .index = 9, .name = "s7"  },
-    [10] = { .next = &symreg_abi[11], .flags = SYMBOL_FLAG_REG, .index = 10, .name = "s8"  },
-    [11] = { .next = &symreg_abi[12], .flags = SYMBOL_FLAG_REG, .index = 11, .name = "s9"  },
-    [12] = { .next = &symreg_abi[13], .flags = SYMBOL_FLAG_REG, .index = 12, .name = "s10"  },
-    [13] = { .next = &symreg_abi[14], .flags = SYMBOL_FLAG_REG, .index = 13, .name = "s11"  },
-    [14] = { .next = &symreg_abi[15], .flags = SYMBOL_FLAG_REG, .index = 14, .name = "sp"  },
-    [15] = { .next = &symreg_abi[16], .flags = SYMBOL_FLAG_REG, .index = 15, .name = "tp"  },
-    [16] = { .next = &symreg_abi[17], .flags = SYMBOL_FLAG_REG, .index = 16, .name = "v0"  },
-    [17] = { .next = &symreg_abi[18], .flags = SYMBOL_FLAG_REG, .index = 17, .name = "v1"  },
-    [18] = { .next = &symreg_abi[19], .flags = SYMBOL_FLAG_REG, .index = 18, .name = "a0"  },
-    [19] = { .next = &symreg_abi[20], .flags = SYMBOL_FLAG_REG, .index = 19, .name = "a1"  },
-    [20] = { .next = &symreg_abi[21], .flags = SYMBOL_FLAG_REG, .index = 20, .name = "a2"  },
-    [21] = { .next = &symreg_abi[22], .flags = SYMBOL_FLAG_REG, .index = 21, .name = "a3"  },
-    [22] = { .next = &symreg_abi[23], .flags = SYMBOL_FLAG_REG, .index = 22, .name = "a4"  },
-    [23] = { .next = &symreg_abi[24], .flags = SYMBOL_FLAG_REG, .index = 23, .name = "a5"  },
-    [24] = { .next = &symreg_abi[25], .flags = SYMBOL_FLAG_REG, .index = 24, .name = "a6"  },
-    [25] = { .next = &symreg_abi[26], .flags = SYMBOL_FLAG_REG, .index = 25, .name = "a7"  },
-    [26] = { .next = &symreg_abi[27], .flags = SYMBOL_FLAG_REG, .index = 26, .name = "t0"  },
-    [27] = { .next = &symreg_abi[28], .flags = SYMBOL_FLAG_REG, .index = 27, .name = "t1"  },
-    [28] = { .next = &symreg_abi[29], .flags = SYMBOL_FLAG_REG, .index = 28, .name = "t2"  },
-    [29] = { .next = &symreg_abi[30], .flags = SYMBOL_FLAG_REG, .index = 29, .name = "t3"  },
-    [30] = { .next = &symreg_abi[31], .flags = SYMBOL_FLAG_REG, .index = 30, .name = "gp"  },
+    SYMREG_ABI(0, "zero"), SYMREG_ABI(1, "ra"),   SYMREG_ABI(2, "fp"),
+    SYMREG_ABI(3, "s1"),   SYMREG_ABI(4, "s2"),   SYMREG_ABI(5, "s3"),   SYMREG_ABI(6, "s4"),
+    SYMREG_ABI(7, "s5"),   SYMREG_ABI(8, "s6"),   SYMREG_ABI(9, "s7"),   SYMREG_ABI(10, "s8"),
+    SYMREG_ABI(11, "s9"),  SYMREG_ABI(12, "s10"), SYMREG_ABI(13, "s11"),
+    SYMREG_ABI(14, "sp"),  SYMREG_ABI(15, "tp"),  SYMREG_ABI(16, "v0"),  SYMREG_ABI(17, "v1"),
+    SYMREG_ABI(18, "a0"),  SYMREG_ABI(19, "a1"),  SYMREG_ABI(20, "a2"),  SYMREG_ABI(21, "a3"),
+    SYMREG_ABI(22, "a4"),  SYMREG_ABI(23, "a5"),  SYMREG_ABI(24, "a6"),  SYMREG_ABI(25, "a7"),
+    SYMREG_ABI(26, "t0"),  SYMREG_ABI(27, "t1"),  SYMREG_ABI(28, "t2"),  SYMREG_ABI(29, "t3"),
+    SYMREG_ABI(30, "gp"),
     [31] = { .next = 0, .flags = SYMBOL_FLAG_REG, .index = 2,  .name = "s0"  }
 };
 
@@ -85,34 +48,64 @@ char* register_abi_name(int r)
     return symreg_abi[r].name;
 }
 
+#define SYM_INSTR(nm) \
+    [INSTR_##nm##_SI] = { .next = &sym_instr[INSTR_##nm##_SI+1], .flags = SYMBOL_FLAG_INSTR, \
+			  .index = INSTR_##nm##_SI, .name = #nm }
+#define SYM_INSTR_END(nm) \
+    [INSTR_##nm##_SI] = { .next = 0, .flags = SYMBOL_FLAG_INSTR, \
+			  .index = INSTR_##nm##_SI, .name = #nm }
+
 symbol_t sym_instr[] =
 {
-    [0] = { .next = &sym_instr[1], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_ADD_SI, .name = "add" },
-    [1] = { .next = &sym_instr[2], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_SUB_SI, .name = "sub" },
-    [2] = { .next = &sym_instr[3], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_SLL_SI, .name = "sll" },
-    [3] = { .next = &sym_instr[4], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_SLT_SI, .name = "slt" },
-    [4] = { .next = &sym_instr[5], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_SLTU_SI, .name = "sltu" },
-    [5] = { .next = &sym_instr[6], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_XOR_SI, .name = "xor" },
-    [6] = { .next = &sym_instr[7], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_SRL_SI, .name = "srl" },
-    [7] = { .next = &sym_instr[8], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_SRA_SI, .name = "sra" },
-    [8] = { .next = &sym_instr[9], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_OR_SI, .name = "or" },
-    [9] = { .next = &sym_instr[10], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_AND_SI, .name = "and" },
-    [10] = { .next = &sym_instr[11], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_ADDI_SI, .name = "addi" },
-    [11] = { .next = &sym_instr[12], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_SLLI_SI, .name = "slli" },
-    [12] = { .next = &sym_instr[13], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_SLTI_SI, .name = "slti" },
-    [13] = { .next = &sym_instr[14], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_SLTIU_SI, .name = "sltiu" },
-    [14] = { .next = &sym_instr[15], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_XORI_SI, .name = "xori" },
-    [15] = { .next = &sym_instr[16], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_SRLI_SI, .name = "srli" },
-    [16] = { .next = &sym_instr[17], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_SRAI_SI, .name = "srai" },
-    [17] = { .next = &sym_instr[18], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_ORI_SI, .name = "ori" },
-    [18] = { .next = &sym_instr[19], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_ANDI_SI, .name = "andi" },
-    [19] = { .next = &sym_instr[20], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_BEQ_SI, .name = "beq" },
-    [20] = { .next = &sym_instr[21], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_BNE_SI, .name = "bne" },
-    [21] = { .next = &sym_instr[22], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_BLT_SI, .name = "blt" },
-    [22] = { .next = &sym_instr[23], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_BLTU_SI, .name = "bltu" },
-    [23] = { .next = &sym_instr[24], .flags = SYMBOL_FLAG_INSTR, .index = INSTR_BGE_SI, .name = "bge" },
-    [24] = { .next = 0,              .flags = SYMBOL_FLAG_INSTR, .index = INSTR_BGEU_SI, .name = "bgeu" },
+    SYM_INSTR(add),       // R
+    SYM_INSTR(sub),       // R
+    SYM_INSTR(sll),       // R
+    SYM_INSTR(srl),       // R
+    SYM_INSTR(sra),       // R
+    SYM_INSTR(and),       // R
+    SYM_INSTR(or),        // R
+    SYM_INSTR(xor),       // R
+    SYM_INSTR(slt),       // R
+    SYM_INSTR(sltu),      // R
+    SYM_INSTR(addi),      // I
+    SYM_INSTR(slli),      // I
+    SYM_INSTR(srli),      // I
+    SYM_INSTR(srai),      // I
+    SYM_INSTR(andi),      // I
+    SYM_INSTR(ori),       // I
+    SYM_INSTR(xori),      // I
+    SYM_INSTR(slti),      // I
+    SYM_INSTR(sltiu),     // I
+    SYM_INSTR(lui),       // U
+    SYM_INSTR(auipc),     // U
+    SYM_INSTR(lb),        // I
+    SYM_INSTR(lbu),       // I
+    SYM_INSTR(lh),        // I
+    SYM_INSTR(lhu),       // I
+    SYM_INSTR(lw),        // I
+    SYM_INSTR(sb),        // S
+    SYM_INSTR(sh),        // S
+    SYM_INSTR(sw),        // S
+    SYM_INSTR(fence),     // I
+    SYM_INSTR(fence_i),   // I
+    SYM_INSTR(beq),       // SB - Branch if equal
+    SYM_INSTR(bne),       // SB - Branch if not equal
+    SYM_INSTR(blt),       // SB - Branch if less than, 2's complement
+    SYM_INSTR(bltu),      // SB - Branch if less than, unsigned
+    SYM_INSTR(bge),       // SB - Branch if greater or equal, 2's complement
+    SYM_INSTR(bgeu),      // SB - Branch if greater or equal, unsigned
+    SYM_INSTR(jal),       // UJ - Jump and link
+    SYM_INSTR(jalr),      // I  - Jump and link register
+    SYM_INSTR(scall),     // I  - System call
+    SYM_INSTR(sbreak),    // I  - Breakpoint
+    SYM_INSTR(rdcycle),   // I  - 
+    SYM_INSTR(rdcycleh),  // I  - 
+    SYM_INSTR(rdtime),    // I  - 
+    SYM_INSTR(rdtimeh),   // I  - 
+    SYM_INSTR(rdinstret), // I  - 
+    SYM_INSTR_END(rdinstreth), // I  - 
 };
+
 
 #define NINSTR (sizeof(sym_instr)/sizeof(symbol_t))
 
@@ -136,6 +129,8 @@ int to_int(char* ptr)
     int sign = 0;
     int base = 10;
 
+    fprintf(stderr, "to_int: ptr=%s\n", ptr);
+    
     if (*ptr == '-') {
 	sign = -1;
 	ptr++;
@@ -193,7 +188,37 @@ int asm_reg(vasm_ctx_t* ctx, token_t* tokens, int i, int* reg)
     return -1;
 }
 
+int asm_iorw(vasm_ctx_t* ctx, token_t* tokens, int i, int* iorw)
+{
+    char* ptr;
+    int v = 0;
+    if (tokens[i].c != TOKEN_SYMBOL)
+	return -1;
+    ptr = tokens[i].name;
+    while(*ptr) {
+	switch(*ptr) {
+	case 'i': v |= 8; break;
+	case 'o': v |= 4; break;
+	case 'r': v |= 2; break;
+	case 'w': v |= 1; break;
+	default: return -1;
+	}
+	ptr++;
+    }
+    *iorw = v;
+    return i+1;
+}
+
 int asm_imm12(vasm_ctx_t* ctx, token_t* tokens, int i, int* imm)
+{
+    if (tokens[i].c == TOKEN_NUMBER)
+	*imm = to_int(tokens[i].name);
+    else
+	return -1;
+    return i+1;
+}
+
+int asm_imm20(vasm_ctx_t* ctx, token_t* tokens, int i, int* imm)
 {
     if (tokens[i].c == TOKEN_NUMBER)
 	*imm = to_int(tokens[i].name);
@@ -264,31 +289,53 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    return -1;
 	}
 	switch(isym->index) {
-	case INSTR_ADD_SI: funct3 = FUNCT_ADD; goto op_arith;
-	case INSTR_SUB_SI: funct3 = FUNCT_SUB; funct7 = 0x20; goto op_arith;
-	case 2: funct3 = FUNCT_SLL; goto op_arith;
-	case 3: funct3 = FUNCT_SLT; goto op_arith;
-	case 4: funct3 = FUNCT_SLTU; goto op_arith;
-	case 5: funct3 = FUNCT_XOR; goto op_arith;
-	case 6: funct3 = FUNCT_SRL; goto op_arith;
-	case 7: funct3 = FUNCT_SRA; funct7 = 0x20; goto op_arith;
-	case 8: funct3 = FUNCT_OR; goto op_arith;
-	case 9: funct3 = FUNCT_AND; goto op_arith;
-	case 10: funct3 = FUNCT_ADDI; goto op_imm;
-	case 11: funct3 = FUNCT_SLLI; goto op_imm;
-	case 12: funct3 = FUNCT_SLTI; goto op_imm;
-	case 13: funct3 = FUNCT_SLTIU; goto op_imm;
-	case 14: funct3 = FUNCT_XORI; goto op_imm;
-	case 15: funct3 = FUNCT_SRLI; goto op_imm;
-	case 16: funct3 = FUNCT_SRAI; imm11_0 = 0x20; goto op_imm;
-	case 17: funct3 = FUNCT_ORI; goto op_imm;
-	case 18: funct3 = FUNCT_ANDI; goto op_imm;
-	case 19: funct3 = FUNCT_BEQ; goto op_branch;
-	case 20: funct3 = FUNCT_BNE; goto op_branch;
-	case 21: funct3 = FUNCT_BLT; goto op_branch;
-	case 22: funct3 = FUNCT_BLTU; goto op_branch;
-	case 23: funct3 = FUNCT_BGE; goto op_branch;
-	case 24: funct3 = FUNCT_BGEU; goto op_branch;
+	case INSTR_add_SI: funct3 = FUNCT_ADD; goto op_arith;
+	case INSTR_sub_SI: funct3 = FUNCT_SUB; funct7 = 0x20; goto op_arith;
+	case INSTR_sll_SI: funct3 = FUNCT_SLL; goto op_arith;
+	case INSTR_slt_SI: funct3 = FUNCT_SLT; goto op_arith;
+	case INSTR_sltu_SI: funct3 = FUNCT_SLTU; goto op_arith;
+	case INSTR_xor_SI: funct3 = FUNCT_XOR; goto op_arith;
+	case INSTR_srl_SI: funct3 = FUNCT_SRL; goto op_arith;
+	case INSTR_sra_SI: funct3 = FUNCT_SRA; funct7 = 0x20; goto op_arith;
+	case INSTR_or_SI: funct3 = FUNCT_OR; goto op_arith;
+	case INSTR_and_SI: funct3 = FUNCT_AND; goto op_arith;
+	case INSTR_addi_SI: opcode = OPCODE_IMM; funct3 = FUNCT_ADDI; goto op_i_format;
+	case INSTR_slli_SI: opcode = OPCODE_IMM; funct3 = FUNCT_SLLI; goto op_i_format;
+	case INSTR_slti_SI: opcode = OPCODE_IMM; funct3 = FUNCT_SLTI; goto op_i_format;
+	case INSTR_sltiu_SI: opcode = OPCODE_IMM; funct3 = FUNCT_SLTIU; goto op_i_format;
+	case INSTR_xori_SI: opcode = OPCODE_IMM; funct3 = FUNCT_XORI; goto op_i_format;
+	case INSTR_srli_SI: opcode = OPCODE_IMM; funct3 = FUNCT_SRLI; goto op_i_format;
+	case INSTR_srai_SI: opcode = OPCODE_IMM; funct3 = FUNCT_SRAI; imm11_0 = 0x20; goto op_i_format;
+	case INSTR_ori_SI: opcode = OPCODE_IMM; funct3 = FUNCT_ORI; goto op_i_format;
+	case INSTR_andi_SI: opcode = OPCODE_IMM; funct3 = FUNCT_ANDI; goto op_i_format;
+	case INSTR_lui_SI: opcode = OPCODE_LUI; goto op_u_format;
+	case INSTR_auipc_SI: opcode = OPCODE_AUIPC; goto op_u_format;
+	case INSTR_lb_SI: opcode = OPCODE_LOAD; funct3 = FUNCT_LB; goto op_i_format;
+	case INSTR_lbu_SI: opcode = OPCODE_LOAD; funct3 = FUNCT_LBU; goto op_i_format;
+	case INSTR_lh_SI: opcode = OPCODE_LOAD; funct3 = FUNCT_LH; goto op_i_format;
+	case INSTR_lhu_SI: opcode = OPCODE_LOAD; funct3 = FUNCT_LHU; goto op_i_format;
+	case INSTR_lw_SI: opcode = OPCODE_LOAD; funct3 = FUNCT_LW; goto op_i_format;
+	case INSTR_sb_SI: opcode = OPCODE_STORE; funct3 = FUNCT_SB; goto op_s_format;
+	case INSTR_sh_SI: opcode = OPCODE_STORE; funct3 = FUNCT_SH; goto op_s_format;
+	case INSTR_sw_SI: opcode = OPCODE_STORE; funct3 = FUNCT_SW; goto op_s_format;
+	case INSTR_fence_SI: opcode = OPCODE_FENCE; funct3 = FUNCT_FENCE; goto op_i_format;
+	case INSTR_fence_i_SI: opcode = OPCODE_FENCE; funct3 = FUNCT_FENCE_I; goto op_i_format;
+	case INSTR_beq_SI: funct3 = FUNCT_BEQ; goto op_sb_format;
+	case INSTR_bne_SI: funct3 = FUNCT_BNE; goto op_sb_format;
+	case INSTR_blt_SI: funct3 = FUNCT_BLT; goto op_sb_format;
+	case INSTR_bltu_SI: funct3 = FUNCT_BLTU; goto op_sb_format;
+	case INSTR_bge_SI: funct3 = FUNCT_BGE; goto op_sb_format;
+	case INSTR_bgeu_SI: funct3 = FUNCT_BGEU; goto op_sb_format;
+	case INSTR_jal_SI: opcode = OPCODE_JAL; goto op_uj_format;
+	case INSTR_jalr_SI: opcode = OPCODE_JALR; goto op_i_format;
+	case INSTR_scall_SI:  opcode = OPCODE_SYS; imm11_0=0x000; goto op_i_format;
+	case INSTR_sbreak_SI: opcode = OPCODE_SYS; imm11_0=0x001; goto op_i_format;
+	case INSTR_rdcycle_SI: opcode = OPCODE_SYS; imm11_0=0xc00; goto op_i_format;
+	case INSTR_rdcycleh_SI: opcode = OPCODE_SYS; imm11_0=0xc80; goto op_i_format;
+	case INSTR_rdtime_SI: opcode = OPCODE_SYS; imm11_0=0xc01; goto op_i_format;
+	case INSTR_rdtimeh_SI: opcode = OPCODE_SYS; imm11_0=0xc81; goto op_i_format;
+	case INSTR_rdinstret_SI: opcode = OPCODE_SYS; imm11_0=0xc02; goto op_i_format;
+	case INSTR_rdinstreth_SI: opcode = OPCODE_SYS; imm11_0=0xc82; goto op_i_format;
 	default:
 	    fprintf(stderr, "%s:%d unknown opcode %s\n", 
 		    ctx->filename, ctx->lineno, tokens[i].name);
@@ -324,26 +371,67 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    return 0;
 	}
 
-    op_imm: {
+    op_i_format: {
 	    int rs1, rd;
 	    instr_i* instr = (instr_i*) &ctx->rt.mem[ctx->rt.waddr];
 	    int imm;
 
-	    i++;
-	    if ((i = asm_reg(ctx,tokens,i,&rd)) < 0)
-		goto syntax_error;
-	    if (tokens[i].c != ',')
-		goto syntax_error;
-	    i++;
-	    if ((i = asm_reg(ctx,tokens,i,&rs1)) < 0)
-		goto syntax_error;
-	    if (tokens[i].c != ',')
-		goto syntax_error;
-	    i++;
-	    if ((i = asm_imm12(ctx,tokens,i,&imm)) < 0)
-		goto syntax_error;
+	    rd = 0;
+	    if ((opcode != OPCODE_SYS) || (imm11_0 > 0x001)) {
+		i++;
+		if ((i = asm_reg(ctx,tokens,i,&rd)) < 0)
+		    goto syntax_error;
+		if (opcode != OPCODE_SYS) {
+		    if (tokens[i].c != ',')
+			goto syntax_error;
+		    i++;
+		}
+	    }
 
-	    instr->opcode = OPCODE_IMM;
+	    if (opcode == OPCODE_LOAD) {
+		if (tokens[i].c == '(') {
+		    imm = 0;
+		    i++;
+		}
+		else {
+		    if ((i = asm_imm12(ctx,tokens,i,&imm)) < 0)
+			goto syntax_error;
+		    if (tokens[i].c != '(')
+			goto syntax_error;
+		    i++;
+		}
+		if ((i = asm_reg(ctx,tokens,i,&rs1)) < 0)
+		    goto syntax_error;
+		if (tokens[i].c != ')')
+		    goto syntax_error;
+	    }
+	    else if (opcode == OPCODE_FENCE) {
+		rd = 0;
+		rs1 = 0;
+		imm = 0;
+		if (funct3 == FUNCT_FENCE) {
+		    int pred, succ; // fence pred (iorw), succ (iorw)
+		    if ((i = asm_iorw(ctx,tokens,i,&pred)) < 0)
+			goto syntax_error;
+		    if (tokens[i].c != ',')
+			goto syntax_error;
+		    i++;
+		    if ((i = asm_iorw(ctx,tokens,i,&succ)) < 0)
+			goto syntax_error;
+		    imm = (pred << 4) | succ;
+		}
+	    }
+	    else if (opcode != OPCODE_SYS) {
+		if ((i = asm_reg(ctx,tokens,i,&rs1)) < 0)
+		    goto syntax_error;
+		if (tokens[i].c != ',')
+		    goto syntax_error;
+		i++;
+		if ((i = asm_imm12(ctx,tokens,i,&imm)) < 0)
+		    goto syntax_error;
+		fprintf(stderr, "imm = %d\n", imm);
+	    }
+	    instr->opcode = opcode;
 	    instr->rd = rd;
 	    instr->funct3 = funct3;
 	    instr->rs1 = rs1;
@@ -353,7 +441,45 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    return 0;
 	}
 
-    op_branch: {
+    op_s_format: {
+	    int rs1, rs2;
+	    instr_s* instr = (instr_s*) &ctx->rt.mem[ctx->rt.waddr];
+	    int imm;
+
+	    i++;
+	    if ((i = asm_reg(ctx,tokens,i,&rs2)) < 0)
+		goto syntax_error;
+	    if (tokens[i].c != ',')
+		goto syntax_error;
+	    i++;
+
+	    if (tokens[i].c == '(') {
+		imm = 0;
+		i++;
+	    }
+	    else {
+		if ((i = asm_imm12(ctx,tokens,i,&imm)) < 0)
+		    goto syntax_error;
+		if (tokens[i].c != '(')
+		    goto syntax_error;
+		i++;
+	    }
+	    if ((i = asm_reg(ctx,tokens,i,&rs1)) < 0)
+		goto syntax_error;
+	    if (tokens[i].c != ')')
+		goto syntax_error;
+
+	    instr->opcode = opcode;
+	    instr->rs1 = rs1;
+	    instr->rs2 = rs2;
+	    instr->funct3 = funct3;
+	    instr->imm4_0 = imm & 0x1f;
+	    instr->imm11_5 = imm >> 5;
+	    ctx->rt.waddr += 4;
+	    return 0;
+	}
+
+    op_sb_format: {
 	    int rs1, rs2;
 	    instr_sb* instr = (instr_sb*) &ctx->rt.mem[ctx->rt.waddr];
 	    int imm;
@@ -380,7 +506,51 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    instr->rs2 = rs2;
 	    instr->imm10_5 = (imm>>5) & 0x3f;
 	    instr->imm12 = (imm>>12) & 0x1;
+	    ctx->rt.waddr += 4;
+	    return 0;
+	}
 
+    op_u_format: {
+	    int rd;
+	    instr_u* instr = (instr_u*) &ctx->rt.mem[ctx->rt.waddr];
+	    int imm;
+
+	    i++;
+	    if ((i = asm_reg(ctx,tokens,i,&rd)) < 0)
+		goto syntax_error;
+	    if (tokens[i].c != ',')
+		goto syntax_error;
+	    i++;
+	    if ((i = asm_imm20(ctx,tokens,i,&imm)) < 0)
+		goto syntax_error;
+
+	    instr->opcode = opcode;
+	    instr->rd = rd;
+	    instr->imm31_12 = imm;
+	    ctx->rt.waddr += 4;
+	    return 0;
+	}
+
+    op_uj_format: {
+	    int rd;
+	    instr_uj* instr = (instr_uj*) &ctx->rt.mem[ctx->rt.waddr];
+	    int imm;
+
+	    i++;
+	    if ((i = asm_reg(ctx,tokens,i,&rd)) < 0)
+		goto syntax_error;
+	    if (tokens[i].c != ',')
+		goto syntax_error;
+	    i++;
+	    if ((i = asm_imm20(ctx,tokens,i,&imm)) < 0)
+		goto syntax_error;
+
+	    instr->opcode = opcode;
+	    instr->rd = rd;
+	    instr->imm19_12 = (imm >> 11) & 0xff;
+	    instr->imm11 = (imm >> 10) & 1;
+            instr->imm10_1 = imm & 0x3ff;
+	    instr->imm20 = (imm >> 19) & 0x1;
 	    ctx->rt.waddr += 4;
 	    return 0;
 	}
