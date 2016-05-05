@@ -3,10 +3,19 @@
 
 #include <stdint.h>
 
-typedef uint32_t unsigned_t;
-typedef  int32_t signed_t;
+#define RV32I 1
+// #define RV32M 1
+// #define RV32E 1
+// #define RV32A 1
+// #define RV32F 1
+// #define RV32D 1
+#define RV32C 1
 
-#define word_size (sizeof(unsigned_t)*8)
-#define word_mask (word_size-1)
+// #define RV64I 1
+// #define RV64M 1
+// #define RV64A 1
+// #define RV64F 1
+// #define RV64D 1
+// #define RV64C 1
 
 #endif

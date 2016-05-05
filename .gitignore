@@ -1,0 +1,5 @@
+*.o
+*.d
+version.c
+version.h
+vasm

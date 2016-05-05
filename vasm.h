@@ -22,6 +22,7 @@ typedef struct _vasm_ctx_t {
     char*      filename;
     int        lineno;
     int        debug;
+    int        verbose;
 } vasm_ctx_t;
 
 
@@ -37,6 +38,12 @@ typedef union _instr_t {
 #endif
     };
 } instr_t;
+
+// instruction length
+#define OPCODE_IS_16BIT(op) (((op) & 0x3)  !=  0x3)
+#define OPCODE_IS_32BIT(op) (((op) & 0x1f) != 0x1f)
+#define OPCODE_IS_48BIT(op) (((op) & 0x3f) == 0x1f)
+#define OPCODE_IS_64BIT(op) (((op) & 0x7f) == 0x3f)
 
 // add,sub,sll,srl,sra,and,or,xor,slt,sltu
 #define OPCODE_ARITH 0x33
@@ -228,15 +235,188 @@ typedef union _instr_uj {
     };
 } instr_uj;
 
+// Instruction symbol index
+#define INSTR_ADD_SI 0
+#define INSTR_SUB_SI 1
+#define INSTR_SLL_SI 2
+#define INSTR_SLT_SI 3
+#define INSTR_SLTU_SI 4
+#define INSTR_XOR_SI 5
+#define INSTR_SRL_SI 6
+#define INSTR_SRA_SI 7
+#define INSTR_OR_SI 8
+#define INSTR_AND_SI 9
+#define INSTR_ADDI_SI 10
+#define INSTR_SLLI_SI 11
+#define INSTR_SLTI_SI 12
+#define INSTR_SLTIU_SI 13
+#define INSTR_XORI_SI 14
+#define INSTR_SRLI_SI 15
+#define INSTR_SRAI_SI 16
+#define INSTR_ORI_SI 17
+#define INSTR_ANDI_SI 18
+#define INSTR_BEQ_SI 19
+#define INSTR_BNE_SI 20
+#define INSTR_BLT_SI 21
+#define INSTR_BLTU_SI 22
+#define INSTR_BGE_SI 23
+#define INSTR_BGEU_SI 24
+
+#if defined(RV32C)
+
+#define PACKED __attribute__ ((__packed__))
+// compressed formats 
+typedef union PACKED _instr_c {
+    uint16_t instruction;
+    struct {
+#if BYTE_ORDER == LITTLE_ENDIAN
+	unsigned opcode:2;
+	unsigned data:14;
+#else	
+	unsigned data:14;
+	unsigned opcode:2;
+#endif
+    };
+} instr_c;
+
+typedef union PACKED _instr_cr {
+    uint16_t instruction;
+    struct {
+#if BYTE_ORDER == LITTLE_ENDIAN
+	unsigned opcode:2;
+	unsigned rs2:5;
+	unsigned rd:5;
+	unsigned funct4:4;
+#else	
+	unsigned funct4:4;
+	unsigned rs1:5;
+	unsigned rd:5;
+	unsigned opcode:2;
+#endif
+    };
+} instr_cr;
+
+typedef union PACKED _instr_ci {
+    uint16_t instruction;
+    struct {
+#if BYTE_ORDER == LITTLE_ENDIAN
+	unsigned opcode:2;
+	unsigned imm4_0:5;
+	unsigned rs1:5;
+	unsigned imm5:1;
+	unsigned funct3:3;
+#else	
+	unsigned funct3:3;
+	unsigned imm5:1;
+	unsigned rs1:5;
+	unsigned imm4_0:5;
+	unsigned opcode:2;
+#endif
+    };
+} instr_ci;
+
+typedef union PACKED _instr_css {
+    uint16_t instruction;
+    struct {
+#if BYTE_ORDER == LITTLE_ENDIAN
+	unsigned opcode:2;
+	unsigned rs2:5;
+	unsigned imm5_0:6;
+	unsigned funct3:3;
+#else	
+	unsigned funct3:3;
+	unsigned imm5_0:6;
+	unsigned rs2:5;
+	unsigned opcode:2;
+#endif
+    };
+} instr_css;
+
+typedef union PACKED _instr_ciw {
+    uint16_t instruction;
+    struct {
+#if BYTE_ORDER == LITTLE_ENDIAN
+	unsigned opcode:2;
+	unsigned rd8:3;
+	unsigned imm7_0:8;
+	unsigned funct3:3;
+#else
+	unsigned funct3:3;
+	unsigned imm7_0:8;
+	unsigned rd8:3;
+	unsigned opcode:2;
+#endif
+    };
+} instr_ciw;
+
+typedef union PACKED _instr_cl {
+    uint16_t instruction;
+    struct {
+#if BYTE_ORDER == LITTLE_ENDIAN
+	unsigned opcode:2;
+	unsigned cd:3;
+	unsigned imm1_0:2;
+	unsigned cs1:3;
+	unsigned imm4_2:3;
+	unsigned funct3:3;
+#else
+	unsigned funct3:3;
+	unsigned imm4_2:3;
+	unsigned cs1:3;
+	unsigned imm1_0:2;
+	unsigned cd:3;
+	unsigned opcode:2;
+#endif
+    };
+} instr_cl;
+
+typedef union PACKED _instr_cb {
+    uint16_t instruction;
+    struct {
+#if BYTE_ORDER == LITTLE_ENDIAN
+	unsigned opcode:2;
+	unsigned offsl:5;
+	unsigned cs1:3;
+	unsigned offsh:3;
+	unsigned funct3:3;
+#else
+	unsigned funct3:3;
+	unsigned offsh:3;
+	unsigned cs1:3;
+	unsigned offsl:5;
+	unsigned opcode:2;
+#endif
+    };
+} instr_cb;
+
+typedef union PACKED _instr_cj {
+    uint16_t instruction;
+    struct {
+#if BYTE_ORDER == LITTLE_ENDIAN
+	unsigned opcode:2;
+	signed offs:11;
+	unsigned funct3:3;
+#else
+	unsigned funct3:3;
+	signed offs:11;
+	unsigned opcode:2;
+#endif
+    };
+} instr_cj;
+
+#endif
+
 // vasm_asm.c
-int asm_operand(token_t* tokens, int i, int* mode, int* rp);
-int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens);
+
+extern void asm_init(symbol_table_t* symtab); 
+extern char* register_abi_name(int r);
+extern char* register_xi_name(int r);
+extern int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens);
 
 // vasm_disasm.c
-extern void disasm_operand(FILE* f, int mode, int reg);
-extern void disasm_instr(FILE* f,symbol_table_t* symtab,unsigned addr,
-			 void* mem);
-extern void disasm(FILE* f, symbol_table_t* symtab,  void* mem, size_t n);
+extern unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
+			       unsigned_t addr, void* mem);
+extern void disasm(FILE* f, symbol_table_t* symtab, void* mem, size_t n);
 
 // vasm_emu.c
 extern unsigned_t get_operand(vasm_rt_t* ctx, int m, int r);

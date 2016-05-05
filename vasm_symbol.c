@@ -1,7 +1,10 @@
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "vasm_symbol.h"
+
+// fixme: hash when needd
 
 int symbol_eq(symbol_t* sym, char* name)
 {
@@ -17,8 +20,10 @@ symbol_t* symbol_new(char* name,unsigned_t value)
 	return NULL;
     sym->next = NULL;
     sym->value = value;
-    memcpy(sym->name, name, len);
-    sym->name[len] = '\0';
+    sym->flags = SYMBOL_FLAG_ON_HEAP;
+    memcpy(sym->data, name, len);
+    sym->data[len] = '\0';
+    sym->name = sym->data;
     // fprintf(stderr, "new symbol '%s' value = %u\n", sym->name, sym->value);
     return sym;
 }
@@ -27,18 +32,13 @@ void symbol_free(symbol_t* sym)
 {
     if (sym == NULL)
 	return;
+    if (sym->flags & SYMBOL_FLAG_ON_HEAP)
+	return;
     if (sym->flags & SYMBOL_FLAG_IN_TABLE) {
 	fprintf(stderr, "free symbol '%s' still in table!\n", sym->name);
 	return;
     }
     free(sym);
-}
-
-void symbol_table_init(symbol_table_t* symtab)
-{
-    symtab->nsymbols = 0;
-    symtab->first = NULL;
-    symtab->last = NULL;
 }
 
 symbol_t* symbol_table_add(symbol_table_t* symtab,char* name,unsigned_t value)
@@ -51,7 +51,7 @@ symbol_t* symbol_table_add(symbol_table_t* symtab,char* name,unsigned_t value)
 	symtab->last->next = sym;
     else
 	symtab->first = sym;
-    sym->flags |= SYMBOL_FLAG_IN_TABLE;
+    sym->flags |= (SYMBOL_FLAG_IN_TABLE);
     symtab->last = sym;
     symtab->nsymbols++;
     return sym;
@@ -105,6 +105,36 @@ symbol_t* symbol_table_pop(symbol_table_t* symtab)
     return sym;
 }
 
+// install linked symbols into symbol table ( fixed or dynamic )
+void symbol_table_install(symbol_table_t* symtab, symbol_t* first)
+{
+    if (first != NULL) {
+	if (symtab->last != NULL)
+	    symtab->last->next = first;
+	else
+	    symtab->first = first;
+	symtab->nsymbols++;
+	while(first->next) {
+	    symtab->nsymbols++;
+	    first = first->next;
+	}
+	symtab->last = first;
+    }
+}
+
+// install linked symbols from array into symbol table
+void symbol_table_install_array(symbol_table_t* symtab, symbol_t* first, size_t n)
+{
+    if ((first != NULL) && (n > 0)) {
+	if (symtab->last != NULL)
+	    symtab->last->next = first;
+	else
+	    symtab->first = first;
+	symtab->last = first+(n-1);
+	assert(symtab->last->next != NULL);
+	symtab->nsymbols += n;
+    }
+}
 
 symbol_t* symbol_table_lookup(symbol_table_t* symtab, char* name)
 {
@@ -141,6 +171,13 @@ symbol_link_t* symbol_link_add(symbol_t* sym, unsigned addr)
 void symbol_link_free(symbol_link_t* link)
 {
     free(link);
+}
+
+void symbol_table_init(symbol_table_t* symtab)
+{
+    symtab->nsymbols = 0;
+    symtab->first = NULL;
+    symtab->last = NULL;
 }
 
 void symbol_table_dump(FILE* out, symbol_table_t* symtab)

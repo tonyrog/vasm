@@ -2,12 +2,69 @@
 #include "vasm.h"
 #include "vasm_rt.h"
 
+// inflate compressed instruction if needed
+// if data is to be inflated put data in imem
+
+#if defined(RV32C) || defined(RV64C)
+static void* inflate(unsigned_t addr, void* mem, void* imem)
+{
+    void* p = (void*) ((uint8_t*)mem + addr);
+    switch(((instr_c*)p)->opcode) {
+    case 0:
+	break;
+    case 1:
+	break;
+    case 2: {
+	instr_cr* instr = (instr_cr*) p;
+	switch(instr->funct4) {
+	case 0:
+	case 1:
+	case 2:
+	case 3:
+	case 4:
+	case 5:
+	case 6:
+	case 7:
+	case 8:
+	case 9:
+	    if ((instr->rs2 != 0) && (instr->rd != 0)) {
+		instr_r* xinstr = (instr_r*) imem;
+		xinstr->opcode = OPCODE_ARITH;
+		xinstr->rd = instr->rd;
+		xinstr->rs1 = 0;  // zero
+		xinstr->rs2 = instr->rs2;
+		xinstr->funct3 = FUNCT_ADD;
+		xinstr->funct7 = 0x00;
+		return xinstr;
+	    }
+	    break;
+	case 10:
+	case 11:
+	case 12:
+	case 13:
+	case 14:
+	case 15:
+	    break;
+	}
+    }
+    default:
+	break;
+    }
+    return p;
+}
+#endif    
+
 // when implementing compressed instructions are 16bit aligned
 unsigned_t emu(vasm_rt_t* ctx,unsigned_t addr, void* mem)
 {
-    void* p = (void*) ((uint8_t*)mem+addr);
+#if defined(RV32C) || defined(RV64C)
+    instr_t temp;
+    void* p = inflate(addr, mem, &temp);
+#else
+    void* p = (void*) ((uint8_t*)mem + addr);
+#endif
     switch(((instr_t*)p)->opcode) {
-    case OPCODE_ARITH: {    // R-type
+    case OPCODE_ARITH: {  // R-type
 	instr_r* ip = (instr_r*) p;
 	switch(ip->funct3) {
 	case FUNCT_ADD:  // funct7 = 0000000
@@ -85,12 +142,19 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t addr, void* mem)
     }
 
     case OPCODE_LOAD:  // I-type
+	break;
     case OPCODE_FENCE: // I-type
+	break;
     case OPCODE_SYS:   // I-type
+	break;
     case OPCODE_STORE:  // S-type
+	break;
     case OPCODE_BRANCH: // SB-type
+	break;
     case OPCODE_LUI:    // U-type
+	break;
     case OPCODE_AUIPC:  // U-type
+	break;
     case OPCODE_JAL:    // Uj-type
 	break;
     }
@@ -102,7 +166,7 @@ void dump_regs(FILE* f, vasm_rt_t* ctx)
     int i;
 
     for (i = 0; i < NUM_REGISTERS; i++) {
-	fprintf(f, "x%02d = %08x", i, ctx->reg[i]);
+	fprintf(f, "%s = %08x", register_abi_name(i), ctx->reg[i]);
 	if ((i & 3) == 3) 
 	    fprintf(f, "\n");
 	else
@@ -113,7 +177,7 @@ void dump_regs(FILE* f, vasm_rt_t* ctx)
 void run(FILE* f, symbol_table_t* symtab, vasm_rt_t* ctx, unsigned_t addr)
 {
     dump_regs(f, ctx);
-    while(addr < ctx->mem_addr) {
+    while(addr < ctx->waddr) {
 	disasm_instr(f, symtab, addr, ctx->mem);
 	addr = emu(ctx, addr, ctx->mem);
 	dump_regs(f, ctx);

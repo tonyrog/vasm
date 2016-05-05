@@ -10,6 +10,7 @@
 
 #include "vasm.h"
 #include "vasm_ccode.h"
+#include "version.H"
 
 #define MAX_TOKENS       1024
 #define LINE_BUFFER_SIZE 1024
@@ -18,11 +19,14 @@ int vasm_ctx_init(vasm_ctx_t* ctx)
 {
     memset(ctx->rt.reg, 0, sizeof(ctx->rt.reg));
     ctx->rt.mem_size = MEMORY_SIZE;
-    ctx->rt.mem_addr = 0;
+    ctx->rt.waddr = 0;
+    ctx->rt.pc = 0;
     symbol_table_init(&ctx->symtab);
     ctx->filename = "";
     ctx->lineno = 0;
     ctx->debug = 0;
+    ctx->verbose = 0;
+    asm_init(&ctx->symtab);
     return 0;
 }
 
@@ -54,7 +58,7 @@ int main(int argc, char** argv)
 
     vasm_ctx_init(&ctx);
 
-    while((c = getopt(argc, argv, "dt:o:")) != -1) {
+    while((c = getopt(argc, argv, "vdt:o:")) != -1) {
 	switch(c) {
 	case 't':
 	    out_type = optarg;
@@ -65,10 +69,16 @@ int main(int argc, char** argv)
 	case 'd':
 	    ctx.debug = 1;
 	    break;
+	case 'v':
+	    ctx.verbose = 1;
+	    fprintf(stderr, "vasm version=%s short=%s, sha=%s\n",
+		    vasm_version, git_tree_sha_short, git_tree_sha);
+	    break;
 	default:
 	    usage("options");
 	}
     }
+
     if (out_type == NULL) {
 	if (out_file != NULL) {
 	    if (eq_suffix(out_file, ".c"))
@@ -84,12 +94,12 @@ int main(int argc, char** argv)
 	}
     }
 
-    if (optind == argc) {
+    if (optind >= argc) {
 	f = stdin;
 	ctx.filename = "*stdin*";
     }
-    else if (optind > argc) {
-	ctx.filename = argv[1];
+    else {
+	ctx.filename = argv[optind];
 	if ((f = fopen(ctx.filename, "r")) == NULL) {
 	    fprintf(stderr, "vasm: unable to open %s\n", ctx.filename);
 	    exit(1);
@@ -103,6 +113,16 @@ int main(int argc, char** argv)
 	fprintf(stderr, "sizeof(instr_sb) = %lu\n", sizeof(instr_sb));
 	fprintf(stderr, "sizeof(instr_u) = %lu\n", sizeof(instr_u));
 	fprintf(stderr, "sizeof(instr_uj) = %lu\n", sizeof(instr_uj));
+
+#if defined(RV32C)
+	fprintf(stderr, "sizeof(instr_cr) = %lu\n", sizeof(instr_cr));
+	fprintf(stderr, "sizeof(instr_ci) = %lu\n", sizeof(instr_ci));
+	fprintf(stderr, "sizeof(instr_css) = %lu\n", sizeof(instr_css));
+	fprintf(stderr, "sizeof(instr_ciw) = %lu\n", sizeof(instr_ciw));
+	fprintf(stderr, "sizeof(instr_cl) = %lu\n", sizeof(instr_cl));
+	fprintf(stderr, "sizeof(instr_cb) = %lu\n", sizeof(instr_cb));
+	fprintf(stderr, "sizeof(instr_cj) = %lu\n", sizeof(instr_cj));
+#endif
     }
 
     // assemble file
@@ -115,10 +135,12 @@ int main(int argc, char** argv)
 	if (ctx.linebuf[len-1] == '\n')
 	    ctx.linebuf[len-1] = '\0';
 	ctx.lineno++;
+#ifdef HARD_DEBUG
 	if (ctx.debug) {
 	    fprintf(stderr, "%s:%d: [%s]\n", 
 		    ctx.filename, ctx.lineno, ctx.linebuf);
 	}
+#endif
 	if ((n = scan(ctx.linebuf, token_data, tokens, MAX_TOKENS)) > 0)
 	    assemble(&ctx, tokens, n);
     }
@@ -135,10 +157,10 @@ int main(int argc, char** argv)
     if (out_type == NULL) 
 	;
     else if (strcmp(out_type, "c") == 0) {
-	gen_ccode(f, &ctx.symtab, ctx.rt.mem, ctx.rt.mem_addr);
+	gen_ccode(f, &ctx.symtab, ctx.rt.mem, ctx.rt.waddr);
     }
     else if (strcmp(out_type, "vasm") == 0) {
-	disasm(f, &ctx.symtab, ctx.rt.mem, ctx.rt.mem_addr);
+	disasm(f, &ctx.symtab, ctx.rt.mem, ctx.rt.waddr);
     }
     if (f != stdout)
 	fclose(f);

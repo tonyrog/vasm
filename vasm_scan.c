@@ -10,8 +10,6 @@
 //    [+|-] 0b [0-1]+
 // symbols:
 //    [a-zA-Z_][a-zA-Z0-9_]*
-// register
-//    %r([0-9]|[1-2][0-9]|[3][0-1])   in other words r0-r31
 //
 int scan(char* ptr, char* dst, token_t* tokens, size_t max_tokens)
 {
@@ -86,28 +84,6 @@ int scan(char* ptr, char* dst, token_t* tokens, size_t max_tokens)
 	    tokens[i].name = dst;
 	    while(isdigit(*ptr))
 		*dst++ = *ptr++;
-	    *dst++ = '\0';
-	}
-	else if ((ptr[0] == '%') && (ptr[1] == 'r') && 
-		 isdigit(ptr[2]) && isdigit(ptr[3]) &&
-		 ((ptr[2]=='1')||(ptr[2]=='2')||
-		  ((ptr[2]=='3') && ((ptr[3]=='0')||(ptr[3]=='1'))))) {
-    	    tokens[i].c = TOKEN_REG;
-	    tokens[i].name = dst;
-	    tokens[i].value = (ptr[2]-'0')*10 + (ptr[3]-'0');
-	    *dst++ = *ptr++;
-	    *dst++ = *ptr++;
-	    *dst++ = *ptr++;
-	    *dst++ = *ptr++;
-	    *dst++ = '\0';
-	}
-	else if ((ptr[0] == '%') && (ptr[1] == 'r') && isdigit(ptr[2])) {
-	    tokens[i].c = TOKEN_REG;
-	    tokens[i].name = dst;
-	    tokens[i].value = (ptr[2]-'0');
-	    *dst++ = *ptr++;
-	    *dst++ = *ptr++;
-	    *dst++ = *ptr++;
 	    *dst++ = '\0';
 	}
 	else {

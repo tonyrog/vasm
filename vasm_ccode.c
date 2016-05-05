@@ -4,23 +4,25 @@
 #define TAB "    "
 
 
-void gen_ccode_instr(FILE* f,symbol_table_t* symtab,unsigned addr,unsigned_t* mem)
+unsigned_t gen_ccode_instr(FILE* f,symbol_table_t* symtab,
+			   unsigned_t addr,void* mem)
 {
+    return addr+4;
 }
 
-void gen_ccode(FILE* f, symbol_table_t* symtab, unsigned_t* mem, size_t n)
+void gen_ccode(FILE* f, symbol_table_t* symtab, void* mem, size_t n)
 {
-    unsigned_t addr;
+    unsigned_t addr = 0;
 
     fprintf(f, "#include \"vasm_rt.h\"\n\n");
     fprintf(f, 
 	    "void vasm_code_segment(vasm_rt_t* ctx, unsigned_t entry)\n"
 	    "{\n");
-    for (addr = 0; addr < n; addr++) {
+    while(addr < n) {
 	symbol_t* sym;
 	if ((sym = symbol_table_find_label(symtab, addr)) != NULL) 
 	    fprintf(f, "%s:\n", sym->name);
-	gen_ccode_instr(f, symtab, addr, mem);
+	addr = gen_ccode_instr(f, symtab, addr, mem);
     }
     fprintf(f, "}\n\n");
 
