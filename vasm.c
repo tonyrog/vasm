@@ -10,7 +10,7 @@
 
 #include "vasm.h"
 #include "vasm_ccode.h"
-#include "version.H"
+#include "version.h"
 
 #define MAX_TOKENS       1024
 #define LINE_BUFFER_SIZE 1024

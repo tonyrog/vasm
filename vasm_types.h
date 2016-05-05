@@ -1,6 +1,7 @@
 #ifndef __VASM_TYPES_H__
 #define __VASM_TYPES_H__
 
+#include <stdlib.h>
 #include <stdint.h>
 
 #define RV32I 1
