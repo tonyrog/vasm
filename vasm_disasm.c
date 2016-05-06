@@ -40,9 +40,35 @@ char* op_store_name[] =
 
 char* op_branch_name[] =
 {
-    "beq", "bne", "blt", "bltu", "bge", "bgeu", "???", "???"
+    "beq", "bne", "???", "???", "blt", "bge", "bltu", "bgeu"
 };
 
+
+char* iorw_name[] = 
+{
+           // IORW
+    "",    // 0000
+    "w",   // 0001
+    "r",   // 0010
+    "rw",  // 0011
+    "o",   // 0100
+    "ow",  // 0101
+    "or",  // 0110
+    "orw", // 0111
+    "i",   // 1000
+    "iw",   // 1001
+    "ir",   // 1010
+    "irw",  // 1011
+    "io",   // 1100
+    "iow",  // 1101
+    "ior",  // 1110
+    "iorw" // 1111
+};
+
+char* iorw(int v)
+{
+    return iorw_name[v&0xf];
+}
 
 unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 			unsigned_t addr,void* mem)
@@ -99,44 +125,70 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 	fprintf(f, "%s", TAB);
 	fprintf(f, "%s", op_load_name[ip->funct3]);
 	fprintf(f, " %s, %d(%s)\n",
-		register_abi_name(ip->rd), 
+		register_abi_name(ip->rd),
 		ip->imm11_0,
 		register_abi_name(ip->rs1));
 	break;
     }
+
     case OPCODE_FENCE:  {  // I-type
 	instr_i* ip = (instr_i*) p;
 	fprintf(f, "%s", TAB);
 	fprintf(f, "%s", op_fence_name[ip->funct3]);
-	fprintf(f, " %s, %s, %d\n",
-		register_abi_name(ip->rd),
-		register_abi_name(ip->rs1),
-		ip->imm11_0);
-	break;
-    }
-    case OPCODE_JALR:  {  // I-type
-	instr_i* ip = (instr_i*) p;
-	fprintf(f, "%s", TAB);
-	fprintf(f, "%s", "jalr");
-	fprintf(f, " %s, %s, %d\n",
-		register_abi_name(ip->rd),
-		register_abi_name(ip->rs1),
-		ip->imm11_0);
+	if (ip->funct3 == FUNCT_FENCE) {
+	    fprintf(f, " %s, %s\n", 
+		    iorw(ip->imm11_0 >> 4),
+		    iorw(ip->imm11_0));
+	}
+	else {	    
+	    fprintf(f, "\n");
+	}
 	break;
     }
 
     case OPCODE_SYS:  {  // I-type
 	instr_i* ip = (instr_i*) p;
 	fprintf(f, "%s", TAB);
-	if (ip->imm11_0 == 0)
-	    fprintf(f, "%s", "ecall");
-	else if (ip->imm11_0 == 1)
-	    fprintf(f, "%s", "ebreak");
-	else
-	    fprintf(f, "%s", "???");
-	fprintf(f, " %s, %s\n",
-		register_abi_name(ip->rd),
-		register_abi_name(ip->rs1));
+	switch(ip->imm11_0 & 0xfff) {
+	case 0x000:
+	    fprintf(f, "%s", "scall");
+	    fprintf(f, " \n");
+	    break;
+	case 0x001:
+	    fprintf(f, "%s", "sbreak");
+	    fprintf(f, " \n");
+	    break;
+	case 0xc00:
+	    fprintf(f, "%s", "rdcycle");
+	    fprintf(f, " %s\n", register_abi_name(ip->rd));
+	    break;
+	case 0xc80:
+	    fprintf(f, "%s", "rdcycleh");
+	    fprintf(f, " %s\n", register_abi_name(ip->rd));
+	    break;
+	case 0xc01:
+	    fprintf(f, "%s", "rdtime");
+	    fprintf(f, " %s\n", register_abi_name(ip->rd));
+	    break;
+	case 0xc81:
+	    fprintf(f, "%s", "rdtimeh");
+	    fprintf(f, " %s\n", register_abi_name(ip->rd));
+	    break;
+	case 0xc02:
+	    fprintf(f, "%s", "rdinstret");
+	    fprintf(f, " %s\n", register_abi_name(ip->rd));
+	    break;
+	case 0xc82:
+	    fprintf(f, "%s", "rdinstreth");
+	    fprintf(f, " %s\n", register_abi_name(ip->rd));
+	    break;
+	default:
+	    fprintf(f, "%s  imm11_0=%x", "???", ip->imm11_0);
+	    fprintf(f, " %s, %s\n", 
+		    register_abi_name(ip->rd),
+		    register_abi_name(ip->rs1));
+	    break;
+	}
 	break;
     }
 
@@ -146,7 +198,7 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 	fprintf(f, "%s", op_store_name[ip->funct3]);
 	fprintf(f, " %s, %d(%s)\n",
 		register_abi_name(ip->rs1), 
-		(ip->imm11_5 << 5) + (ip->imm4_0),
+		get_imm_s(ip),
 		register_abi_name(ip->rs2));
 	break;
     }
@@ -159,8 +211,7 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 	fprintf(f, " %s, %s, %d\n",
 		register_abi_name(ip->rs1),
 		register_abi_name(ip->rs2),
-		((ip->imm12<<12) | (ip->imm11<<11) |
-		 (ip->imm10_5<<5) | (ip->imm4_1 << 1)));
+		get_imm_sb(ip));
 	break;
     }
     case OPCODE_LUI: {  // U-type
@@ -184,17 +235,25 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 		ip->imm31_12);
 	break;
     }
+
+    case OPCODE_JALR:  {  // I-type
+	instr_i* ip = (instr_i*) p;
+	fprintf(f, "%s", TAB);
+	fprintf(f, "%s", "jalr");
+	fprintf(f, " %s, %d(%s)\n",
+		register_abi_name(ip->rd),
+		ip->imm11_0,
+		register_abi_name(ip->rs1));
+	break;
+    }
+
     case OPCODE_JAL: {  // Uj-type
 	instr_uj* ip = (instr_uj*) p;
 	fprintf(f, "%s", TAB);
 	fprintf(f, "%s", "jal");
-	// fixme: sign
 	fprintf(f, " %s, %d\n",
 		register_abi_name(ip->rd),
-		(ip->imm20 << 20) |
-		(ip->imm19_12 << 12) |
-		(ip->imm11 << 11) |
-		(ip->imm10_1 << 1));
+		get_imm_uj(ip));
 	break;
     }
     default:

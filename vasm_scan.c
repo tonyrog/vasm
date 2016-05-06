@@ -9,7 +9,7 @@
 //    [+|-] 0x [0-9A-Fa-f]+
 //    [+|-] 0b [0-1]+
 // symbols:
-//    [a-zA-Z_][a-zA-Z0-9_]*
+//    [a-zA-Z_][a-zA-Z0-9_.]*
 //
 int scan(char* ptr, char* dst, token_t* tokens, size_t max_tokens)
 {
@@ -26,7 +26,8 @@ int scan(char* ptr, char* dst, token_t* tokens, size_t max_tokens)
 	if (isalpha(*ptr) || (*ptr == '_')) {
 	    tokens[i].c = TOKEN_SYMBOL;
 	    tokens[i].name = dst;
-	    while(isalpha(*ptr) || isdigit(*ptr) || (*ptr == '_'))
+	    while(isalpha(*ptr) || isdigit(*ptr) || 
+		  (*ptr == '_') || (*ptr == '.'))
 		*dst++ = *ptr++;
 	    *dst++ = '\0';
 	}

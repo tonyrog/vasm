@@ -54,11 +54,12 @@ int main(int argc, char** argv)
     int i;
     char* out_file = NULL;
     char* out_type = NULL;
+    char* run_label = NULL;
     int c;
 
     vasm_ctx_init(&ctx);
 
-    while((c = getopt(argc, argv, "vdt:o:")) != -1) {
+    while((c = getopt(argc, argv, "vdt:o:r:")) != -1) {
 	switch(c) {
 	case 't':
 	    out_type = optarg;
@@ -73,6 +74,9 @@ int main(int argc, char** argv)
 	    ctx.verbose = 1;
 	    fprintf(stderr, "vasm version=%s short=%s, sha=%s\n",
 		    vasm_version, git_tree_sha_short, git_tree_sha);
+	    break;
+	case 'r':
+	    run_label = optarg;
 	    break;
 	default:
 	    usage("options");
@@ -141,8 +145,11 @@ int main(int argc, char** argv)
 		    ctx.filename, ctx.lineno, ctx.linebuf);
 	}
 #endif
-	if ((n = scan(ctx.linebuf, token_data, tokens, MAX_TOKENS)) > 0)
+	if ((n = scan(ctx.linebuf, token_data, tokens, MAX_TOKENS)) > 0) {
+	    tokens[n].c = 0;
+	    tokens[n].name = NULL;
 	    assemble(&ctx, tokens, n);
+	}
     }
     if (f != stdin)
 	fclose(f);
@@ -161,6 +168,19 @@ int main(int argc, char** argv)
     }
     else if (strcmp(out_type, "vasm") == 0) {
 	disasm(f, &ctx.symtab, ctx.rt.mem, ctx.rt.waddr);
+    }
+
+    if (run_label != NULL) {
+	symbol_t* sym = symbol_table_lookup(&ctx.symtab, run_label);
+	if (sym == NULL) {
+	    fprintf(stderr, "label %s not found\n", run_label);
+	    exit(1);
+	}
+	if (!(sym->flags & SYMBOL_FLAG_LABEL)) {
+	    fprintf(stderr, "%s is not a label\n", run_label);
+	    exit(1);
+	}
+	run(stdout, &ctx.symtab, &ctx.rt, sym->value);
     }
     if (f != stdout)
 	fclose(f);

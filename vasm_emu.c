@@ -2,6 +2,17 @@
 #include "vasm.h"
 #include "vasm_rt.h"
 
+static inline reg_t rdr(vasm_rt_t* ctx, int r)
+{
+    return (r == 0) ? 0 : ctx->reg[r];
+}
+
+static inline void wrr(vasm_rt_t* ctx, int r, reg_t val)
+{
+    if (r != 0)
+	ctx->reg[r] = val;
+}
+
 // inflate compressed instruction if needed
 // if data is to be inflated put data in imem
 
@@ -70,36 +81,36 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	case FUNCT_ADD:  // funct7 = 0000000
      // case FUNCT_SUB:  // funct7 = 0100000
 	    if (ip->funct7 == 0x00)
-		ctx->reg[ip->rd] = ctx->reg[ip->rs1] + ctx->reg[ip->rs2];
+		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) + rdr(ctx,ip->rs2));
 	    else if (ip->funct7 == 0x20)
-		ctx->reg[ip->rd] = ctx->reg[ip->rs1] - ctx->reg[ip->rs2];
+		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) - rdr(ctx,ip->rs2));
 	    break;
 	case FUNCT_SLL:
-	    ctx->reg[ip->rd] = ctx->reg[ip->rs1] << ctx->reg[ip->rs2];
+	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) << rdr(ctx,ip->rs2));
 	    break;
 	case FUNCT_SLT:
-	    if ((int32_t)ctx->reg[ip->rs1] < (int32_t)ctx->reg[ip->rs2])
-		ctx->reg[ip->rd] = 1;
+	    if ((int32_t)rdr(ctx,ip->rs1) < (int32_t)rdr(ctx,ip->rs2))
+		wrr(ctx,ip->rd,1);
 	    break;
 	case FUNCT_SLTU:
-	    if (ctx->reg[ip->rs1] < ctx->reg[ip->rs2])
-		ctx->reg[ip->rd] = 1;
+	    if (rdr(ctx,ip->rs1) < rdr(ctx,ip->rs2))
+		wrr(ctx,ip->rd,1);
 	    break;
 	case FUNCT_XOR:
-	    ctx->reg[ip->rd] = ctx->reg[ip->rs1] ^ ctx->reg[ip->rs2];
+	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) ^ rdr(ctx,ip->rs2));
 	    break;
 	case FUNCT_SRL:   // funct7 = 0000000
      // case FUNCT_SRA:   // funct7 = 0100000
 	    if (ip->funct7 == 0x00)
-		ctx->reg[ip->rd] = ctx->reg[ip->rs1] >> ctx->reg[ip->rs2];
+		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) >> rdr(ctx,ip->rs2));
 	    else if (ip->funct7 == 0x20)
-		ctx->reg[ip->rd] = (int32_t)ctx->reg[ip->rs1] >> ctx->reg[ip->rs2];
+		wrr(ctx,ip->rd,(int32_t)rdr(ctx,ip->rs1) >> rdr(ctx,ip->rs2));
 	    break;
 	case FUNCT_OR:
-	    ctx->reg[ip->rd] = ctx->reg[ip->rs1] | ctx->reg[ip->rs2];
+	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) | rdr(ctx,ip->rs2));
 	    break;
 	case FUNCT_AND:
-	    ctx->reg[ip->rd] = ctx->reg[ip->rs1] & ctx->reg[ip->rs2];
+	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) & rdr(ctx,ip->rs2));
 	    break;
 	}
 	break;
@@ -108,61 +119,144 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	instr_i* ip = (instr_i*) p;
 	switch(ip->funct3) {
 	case FUNCT_ADDI:
-	    ctx->reg[ip->rd] = ctx->reg[ip->rs1] + ip->imm11_0;
+	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) + ip->imm11_0);
 	    break;
 	case FUNCT_SLLI:
-	    ctx->reg[ip->rd] = ctx->reg[ip->rs1] << ip->imm11_0;
+	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) << ip->imm11_0);
 	    break;
 	case FUNCT_SLTI:
-	    if ((int32_t)ctx->reg[ip->rs1] < ip->imm11_0)
-		ctx->reg[ip->rd] = 1;
+	    if ((int32_t)rdr(ctx,ip->rs1) < ip->imm11_0)
+		wrr(ctx,ip->rd,1);
 	    break;
 	case FUNCT_SLTIU:
-	    if (ctx->reg[ip->rs1] < (unsigned)ip->imm11_0)
-		ctx->reg[ip->rd] = 1;
+	    if (rdr(ctx,ip->rs1) < (unsigned)ip->imm11_0)
+		wrr(ctx,ip->rd,1);
 	    break;
 	case FUNCT_XORI:
-	    ctx->reg[ip->rd] = ctx->reg[ip->rs1] ^ ip->imm11_0;
+	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) ^ ip->imm11_0);
 	    break;
 	case FUNCT_SRLI:  // imm11_0 = 0000000
      // case FUNCT_SRAI:   // imm11_0 = 0100000
 	    if (ip->imm11_0 == 0x00)
-		ctx->reg[ip->rd] = ctx->reg[ip->rs1] >> ip->imm11_0;
+		wrr(ctx,ip->rd, rdr(ctx,ip->rs1) >> ip->imm11_0);
 	    else if (ip->imm11_0 == 0x20)
-		ctx->reg[ip->rd] = (int32_t)ctx->reg[ip->rs1] >> ip->imm11_0;
+		wrr(ctx,ip->rd,(int32_t)rdr(ctx,ip->rs1) >> ip->imm11_0);
 	    break;
 	case FUNCT_ORI:
-	    ctx->reg[ip->rd] = ctx->reg[ip->rs1] | ip->imm11_0;
+	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) | ip->imm11_0);
 	    break;
 	case FUNCT_ANDI:
-	    ctx->reg[ip->rd] = ctx->reg[ip->rs1] & ip->imm11_0;
+	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) & ip->imm11_0);
 	    break;
 	}
 	break;	
     }
 
-    case OPCODE_LOAD:  // I-type
+    case OPCODE_LOAD: { // I-type
+	instr_i* ip = (instr_i*) p;
+	void* addr = (void*) ((uint8_t*)mem + rdr(ctx,ip->rs1)+ip->imm11_0);
+	switch(ip->funct3) {
+	case FUNCT_LB:
+	    wrr(ctx,ip->rd, *((int8_t*)addr));
+	    break;
+	case FUNCT_LH:
+	    wrr(ctx,ip->rd,*((int16_t*)addr));
+	    break;
+	case FUNCT_LW:
+	    wrr(ctx,ip->rd,*((int32_t*)addr));
+	    break;
+	case FUNCT_LBU:
+	    wrr(ctx,ip->rd,*((uint8_t*)addr));
+	    break;
+	case FUNCT_LHU:
+	    wrr(ctx,ip->rd,*((uint16_t*)addr));
+	    break;
+	default:
+	    break;
+	}
 	break;
+    }
+
     case OPCODE_FENCE: // I-type
 	break;
+
     case OPCODE_SYS:   // I-type
 	break;
-    case OPCODE_STORE:  // S-type
+
+    case OPCODE_STORE: {  // S-type
+	instr_s* ip = (instr_s*) p;
+	void* addr = (void*) ((uint8_t*)mem+rdr(ctx,ip->rs1)+get_imm_s(ip));
+	switch(ip->funct3) {
+	case FUNCT_SB:
+	    *((uint8_t*)addr) = rdr(ctx,ip->rs2);
+	    break;
+	case FUNCT_SH:
+	    *((uint16_t*)addr) = rdr(ctx,ip->rs2);
+	    break;
+	case FUNCT_SW:
+	    *((uint32_t*)addr) = rdr(ctx,ip->rs2);
+	    break;
+	default:
+	    break;
+	}
 	break;
-    case OPCODE_BRANCH: // SB-type
+    }
+
+    case OPCODE_BRANCH: { // SB-type
+	instr_sb* ip = (instr_sb*) p;
+	switch(ip->funct3) {
+	case FUNCT_BEQ:
+	    if (rdr(ctx,ip->rs1) == rdr(ctx,ip->rs2))
+		return pc + get_imm_sb(ip);
+	    break;
+	case FUNCT_BNE:
+	    if (rdr(ctx,ip->rs1) != rdr(ctx,ip->rs2))
+		return pc + get_imm_sb(ip);
+	    break;
+	case FUNCT_BLT:
+	    if (rdr(ctx,ip->rs1) < rdr(ctx,ip->rs2))
+		return pc + get_imm_sb(ip);
+	    break;
+	case FUNCT_BGE:
+	    if (rdr(ctx,ip->rs1) >= rdr(ctx,ip->rs2))
+		return pc + get_imm_sb(ip);
+	    break;
+	case FUNCT_BLTU:
+	    if ((ureg_t)rdr(ctx,ip->rs1) < (ureg_t)rdr(ctx,ip->rs2))
+		return pc + get_imm_sb(ip);
+	    break;
+	case FUNCT_BGEU:
+	    if ((ureg_t)rdr(ctx,ip->rs1) >= (ureg_t)rdr(ctx,ip->rs2))
+		return pc + get_imm_sb(ip);
+	    break;
+	}
 	break;
+    }
     case OPCODE_LUI:  { // U-type
 	instr_u* ip = (instr_u*) p;
-	ctx->reg[ip->rd] = (ip->imm31_12 << 12);
+	wrr(ctx,ip->rd,(ip->imm31_12 << 12));
 	break;
     }
     case OPCODE_AUIPC: { // U-type
 	instr_u* ip = (instr_u*) p;
-	ctx->reg[ip->rd] = ctx->pc + (ip->imm31_12 << 12);
+	wrr(ctx,ip->rd, ctx->pc + (ip->imm31_12 << 12));
 	break;
     }
-    case OPCODE_JAL:    // Uj-type
-	break;
+
+    case OPCODE_JALR: {
+	instr_i* ip = (instr_i*) p;
+	reg_t pc1;
+	wrr(ctx,ip->rd,ctx->pc + 4);
+	pc1 = (ip->imm11_0 + rdr(ctx,ip->rs1)) & ~1;
+	return pc1;
+    }
+	
+    case OPCODE_JAL: {   // Uj-type
+	instr_uj* ip = (instr_uj*) p;
+	wrr(ctx,ip->rd,ctx->pc + 4);
+	return pc + get_imm_uj(ip);
+    }
+
     }
     return pc+4;
 }

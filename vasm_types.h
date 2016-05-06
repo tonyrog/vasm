@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#define sizeof_array(t) (sizeof(t)/sizeof(t[0]))
+
 #define RV32I 1
 // #define RV32M 1
 // #define RV32E 1

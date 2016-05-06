@@ -104,6 +104,12 @@ typedef union _instr_r {
 #define FUNCT_FENCE    0
 #define FUNCT_FENCE_I  1
 
+#define FENCE_I_BIT 0x8
+#define FENCE_O_BIT 0x4
+#define FENCE_R_BIT 0x2
+#define FENCE_W_BIT 0x1
+
+
 // jalr
 #define OPCODE_JALR  0x67
 
@@ -158,6 +164,20 @@ typedef union _instr_s {
     };
 } instr_s;
 
+static inline void set_imm_s(instr_s* instr, int imm12)
+{
+    instr->imm4_0  = imm12 & 0x1f;
+    instr->imm11_5 = imm12 >> 5;
+}
+
+static inline int32_t get_imm_s(instr_s* instr)
+{
+    int32_t imm12 = ((instr->imm11_5 << 5) | (instr->imm4_0));
+    return (imm12<<20)>>20;  // sign extend
+}
+
+
+
 // beq, bne, blt, bltu, bge, bgeu
 #define OPCODE_BRANCH  0x63
 #define FUNCT_BEQ      0
@@ -191,6 +211,23 @@ typedef union _instr_sb {
 #endif
     };
 } instr_sb;
+
+static inline void set_imm_sb(instr_sb* instr, int imm)
+{
+    instr->imm4_1  = (imm >> 1) & 0xf;
+    instr->imm10_5 = (imm >> 5) & 0x3f;
+    instr->imm11   = (imm >> 11) & 0x1;
+    instr->imm12   = (imm >> 12) & 0x1;
+}
+
+static inline int32_t get_imm_sb(instr_sb* instr)
+{
+    int32_t imm = ((instr->imm12<<12) | 
+		   (instr->imm11<<11) |
+		   (instr->imm10_5<<5) |
+		   (instr->imm4_1 << 1));
+    return (imm << 19) >> 19;
+}
 
 // lui, auipc
 #define OPCODE_LUI   0x37
@@ -234,6 +271,24 @@ typedef union _instr_uj {
 #endif
     };
 } instr_uj;
+
+static inline void set_imm_uj(instr_uj* instr, int imm)
+{
+    instr->imm19_12 = (imm >> 12) & 0xff;
+    instr->imm11    = (imm >> 11) & 1;
+    instr->imm10_1  = (imm >> 1) & 0x3ff;
+    instr->imm20    = (imm >> 20) & 0x1;
+}
+
+static inline int32_t get_imm_uj(instr_uj* instr)
+{
+    int32_t imm = ((instr->imm20 << 20) |
+		   (instr->imm19_12 << 12) |
+		   (instr->imm11 << 11) |
+		   (instr->imm10_1 << 1));
+    return (imm << 11) >> 11;
+}
+
 
 // Instruction symbol index
 enum {
@@ -283,7 +338,10 @@ enum {
     INSTR_rdtime_SI,
     INSTR_rdtimeh_SI,
     INSTR_rdinstret_SI,
-    INSTR_rdinstreth_SI
+    INSTR_rdinstreth_SI,
+
+    INSTR_nop_SI,
+    INSTR_j_SI,
 };
 
 #if defined(RV32C)

@@ -9,11 +9,13 @@
 #define MEMORY_SIZE   4096   // 4k bytes
 
 #if defined(RV64I)
-typedef uint64_t reg_t;
+typedef int64_t reg_t;
+typedef uint64_t ureg_t;
 typedef uint64_t unsigned_t;
 typedef int64_t  signed_t;
 #elif defined(RV32I)
-typedef uint32_t reg_t;
+typedef int32_t reg_t;
+typedef uint32_t ureg_t;
 typedef uint32_t unsigned_t;
 typedef int32_t  signed_t;
 #endif
@@ -27,8 +29,8 @@ typedef int32_t  signed_t;
 #endif
 
 typedef struct _vasm_rt_t {
-    reg_t reg[NUM_REGISTERS];
-    reg_t pc;
+    reg_t     reg[NUM_REGISTERS];
+    ureg_t    pc;
     size_t    mem_size;
     uint8_t   mem[MEMORY_SIZE];
     uint32_t  waddr;

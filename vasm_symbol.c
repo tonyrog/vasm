@@ -126,12 +126,16 @@ void symbol_table_install(symbol_table_t* symtab, symbol_t* first)
 void symbol_table_install_array(symbol_table_t* symtab, symbol_t* first, size_t n)
 {
     if ((first != NULL) && (n > 0)) {
+	int i;
 	if (symtab->last != NULL)
 	    symtab->last->next = first;
 	else
 	    symtab->first = first;
+	for (i = 0; i < n; i++)
+	    first[i].next = &first[i+1];
+	first[n-1].next = 0;
 	symtab->last = first+(n-1);
-	assert(symtab->last->next != NULL);
+	assert(symtab->last->next == NULL);
 	symtab->nsymbols += n;
     }
 }

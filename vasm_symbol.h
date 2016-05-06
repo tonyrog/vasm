@@ -30,6 +30,9 @@ typedef struct _symbol_t {
     char  data[];   // normally name data
 } symbol_t;
 
+#define SYM_END(i)						\
+    [i] = { .next = 0, .flags = 0, .index = 0, .name = 0 }
+
 typedef struct {
     unsigned_t nsymbols;
     symbol_t* first;
@@ -45,6 +48,8 @@ extern void symbol_link_free(symbol_link_t* link);
 
 extern void symbol_table_init(symbol_table_t* symtab);
 extern void symbol_table_install(symbol_table_t* symtab, symbol_t* first);
+extern void symbol_table_install_array(symbol_table_t* symtab, symbol_t* first,
+				       size_t n);
 extern symbol_t* symbol_table_add(symbol_table_t* symtab,char* name,
 				  unsigned_t value);
 extern symbol_t* symbol_table_remove(symbol_table_t* symtab, char* name);
