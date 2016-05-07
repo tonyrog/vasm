@@ -51,7 +51,6 @@ int main(int argc, char** argv)
 {
     FILE* f = stdin;
     vasm_ctx_t ctx;
-    int i;
     char* out_file = NULL;
     char* out_type = NULL;
     char* run_label = NULL;

@@ -9,18 +9,21 @@
 #define MEMORY_SIZE   4096   // 4k bytes
 
 #if defined(RV64I)
-typedef int64_t reg_t;
+typedef int64_t  reg_t;
 typedef uint64_t ureg_t;
 typedef uint64_t unsigned_t;
 typedef int64_t  signed_t;
 #elif defined(RV32I)
-typedef int32_t reg_t;
+typedef int32_t  reg_t;
 typedef uint32_t ureg_t;
 typedef uint32_t unsigned_t;
 typedef int32_t  signed_t;
+typedef int64_t  dreg_t;
+typedef uint64_t udreg_t;
 #endif
-#define word_size (sizeof(reg_t)*8)
-#define word_mask (word_size-1)
+#define XLEN      (sizeof(reg_t)*8)
+#define word_size XLEN
+#define word_mask (XLEN-1)
 
 #if defined(RV32E)
 #define NUM_REGISTERS 16

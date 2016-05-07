@@ -77,42 +77,98 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
     switch(((instr_t*)p)->opcode) {
     case OPCODE_ARITH: {  // R-type
 	instr_r* ip = (instr_r*) p;
-	switch(ip->funct3) {
-	case FUNCT_ADD:  // funct7 = 0000000
-     // case FUNCT_SUB:  // funct7 = 0100000
-	    if (ip->funct7 == 0x00)
+	switch(ip->funct7) {
+	case 0x00:
+	    switch(ip->funct3) {
+	    case FUNCT_ADD:
 		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) + rdr(ctx,ip->rs2));
-	    else if (ip->funct7 == 0x20)
+		break;
+	    case FUNCT_SLL:
+		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) << rdr(ctx,ip->rs2));
+		break;
+	    case FUNCT_SLT:
+		wrr(ctx,ip->rd, (rdr(ctx,ip->rs1) < rdr(ctx,ip->rs2)));
+		break;
+	    case FUNCT_SLTU:
+		wrr(ctx,ip->rd, ((ureg_t)rdr(ctx,ip->rs1) < (ureg_t)rdr(ctx,ip->rs2)));
+		break;
+	    case FUNCT_XOR:
+		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) ^ rdr(ctx,ip->rs2));
+		break;
+	    case FUNCT_SRL:
+		wrr(ctx,ip->rd,(ureg_t)rdr(ctx,ip->rs1) >> rdr(ctx,ip->rs2));
+		break;
+	    case FUNCT_OR:
+		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) | rdr(ctx,ip->rs2));
+		break;
+	    case FUNCT_AND:
+		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) & rdr(ctx,ip->rs2));
+		break;
+	    }
+	    break;
+	case 0x01:
+#if defined(RV32M)
+	    switch(ip->funct3) {
+	    case FUNCT_MUL:
+		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) * rdr(ctx,ip->rs2));
+		break;
+	    case FUNCT_MULH: {
+		dreg_t r = rdr(ctx,ip->rs1) * rdr(ctx,ip->rs2);
+		wrr(ctx,ip->rd, r>>XLEN);
+		break;
+	    }
+	    case FUNCT_MULHSU: {
+		dreg_t r = rdr(ctx,ip->rs1) * (ureg_t)rdr(ctx,ip->rs2);
+		wrr(ctx,ip->rd, r>>XLEN);
+		break;
+	    }
+	    case FUNCT_MULHU:
+	    case FUNCT_DIV: {
+		reg_t divisor = rdr(ctx,ip->rs2);
+		if (divisor == 0)
+		    wrr(ctx,ip->rd,-1);
+		else {
+		    reg_t dividend = rdr(ctx,ip->rs1);
+		    if (dividend == -(1 << (XLEN-1)))
+			wrr(ctx,ip->rd,dividend);
+		    else
+			wrr(ctx,ip->rd,dividend / divisor);
+		}
+		break;
+	    }
+	    case FUNCT_DIVU: {
+		ureg_t divisor = (ureg_t)rdr(ctx,ip->rs2);
+		if (divisor == 0)
+		    wrr(ctx,ip->rd,-1);
+		else {
+		    ureg_t dividend = (ureg_t) rdr(ctx,ip->rs1);
+		    wrr(ctx,ip->rd,dividend / divisor);
+		}
+		break;
+	    }
+	    case FUNCT_REM:
+		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) % rdr(ctx,ip->rs2));
+		break;
+	    case FUNCT_REMU:
+		wrr(ctx,ip->rd,(ureg_t)rdr(ctx,ip->rs1) % (ureg_t)rdr(ctx,ip->rs2));
+	    }
+#endif
+	    break;
+	case 0x20:
+	    switch(ip->funct3) {
+	    case FUNCT_SUB:
 		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) - rdr(ctx,ip->rs2));
-	    break;
-	case FUNCT_SLL:
-	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) << rdr(ctx,ip->rs2));
-	    break;
-	case FUNCT_SLT:
-	    if ((int32_t)rdr(ctx,ip->rs1) < (int32_t)rdr(ctx,ip->rs2))
-		wrr(ctx,ip->rd,1);
-	    break;
-	case FUNCT_SLTU:
-	    if (rdr(ctx,ip->rs1) < rdr(ctx,ip->rs2))
-		wrr(ctx,ip->rd,1);
-	    break;
-	case FUNCT_XOR:
-	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) ^ rdr(ctx,ip->rs2));
-	    break;
-	case FUNCT_SRL:   // funct7 = 0000000
-     // case FUNCT_SRA:   // funct7 = 0100000
-	    if (ip->funct7 == 0x00)
+		break;
+	    case FUNCT_SRA:
 		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) >> rdr(ctx,ip->rs2));
-	    else if (ip->funct7 == 0x20)
-		wrr(ctx,ip->rd,(int32_t)rdr(ctx,ip->rs1) >> rdr(ctx,ip->rs2));
+		break;
+	    default:
+		break;
+	    }
 	    break;
-	case FUNCT_OR:
-	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) | rdr(ctx,ip->rs2));
+	default:
 	    break;
-	case FUNCT_AND:
-	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) & rdr(ctx,ip->rs2));
-	    break;
-	}
+	}			    
 	break;
     }
     case OPCODE_IMM: {   // I-type
@@ -125,12 +181,10 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) << ip->imm11_0);
 	    break;
 	case FUNCT_SLTI:
-	    if ((int32_t)rdr(ctx,ip->rs1) < ip->imm11_0)
-		wrr(ctx,ip->rd,1);
+	    wrr(ctx,ip->rd,(rdr(ctx,ip->rs1) < ip->imm11_0));
 	    break;
 	case FUNCT_SLTIU:
-	    if (rdr(ctx,ip->rs1) < (unsigned)ip->imm11_0)
-		wrr(ctx,ip->rd,1);
+	    wrr(ctx,ip->rd,((ureg_t)rdr(ctx,ip->rs1) < (ureg_t)ip->imm11_0));
 	    break;
 	case FUNCT_XORI:
 	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) ^ ip->imm11_0);
@@ -138,9 +192,9 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	case FUNCT_SRLI:  // imm11_0 = 0000000
      // case FUNCT_SRAI:   // imm11_0 = 0100000
 	    if (ip->imm11_0 == 0x00)
-		wrr(ctx,ip->rd, rdr(ctx,ip->rs1) >> ip->imm11_0);
+		wrr(ctx,ip->rd, (ureg_t)rdr(ctx,ip->rs1) >> ip->imm11_0);
 	    else if (ip->imm11_0 == 0x20)
-		wrr(ctx,ip->rd,(int32_t)rdr(ctx,ip->rs1) >> ip->imm11_0);
+		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) >> ip->imm11_0);
 	    break;
 	case FUNCT_ORI:
 	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) | ip->imm11_0);

@@ -20,7 +20,11 @@ typedef struct _symbol_link_t {
 typedef struct _symbol_t {
     struct _symbol_t* next;
     unsigned_t flags;
-    int        index;   // used for pre-installed symbols
+    int        index;     // used for pre-installed symbols
+    uint8_t    opcode;    // Instruction opcode
+    uint16_t   funct;     // Instruction variant
+    uint8_t    format;    // Instruction/Data format
+    uint32_t   sequence;  // Parse sequence
     union {
 	unsigned_t value;
 	void* ptr;
@@ -30,14 +34,26 @@ typedef struct _symbol_t {
     char  data[];   // normally name data
 } symbol_t;
 
-#define SYM_END(i)						\
-    [i] = { .next = 0, .flags = 0, .index = 0, .name = 0 }
-
 typedef struct {
     unsigned_t nsymbols;
     symbol_t* first;
     symbol_t* last;
 } symbol_table_t;
+
+#define SYM_INSTR(nm) \
+    [INSTR_##nm##_SI] = { .next = 0, .flags = SYMBOL_FLAG_INSTR, .index = INSTR_##nm##_SI, .name = #nm }
+
+#define SYM_INSTR_X(nm,op,fu,fo,val,seq)					\
+    [INSTR_##nm##_SI] = { .next = 0, .flags = SYMBOL_FLAG_INSTR, .index = INSTR_##nm##_SI, \
+			  .opcode=(op), .funct=(fu), .format=(fo), .value=(val), .sequence=(seq), .name = #nm }
+
+#define SYM_INSTR_NAME_X(nm,nam,op,fu,fo,val,seq)			\
+    [INSTR_##nm##_SI] = { .next = 0, .flags = SYMBOL_FLAG_INSTR, .index = INSTR_##nm##_SI, \
+			  .opcode=(op), .funct=(fu), .format=(fo), .value=(val), .sequence=(seq), .name = nam }
+
+// when string name is not = nm
+#define SYM_INSTR_NAME(nm,nam)						\
+    [INSTR_##nm##_SI] = { .next = 0, .flags = SYMBOL_FLAG_INSTR, .index = INSTR_##nm##_SI, .name = nam }
 
 extern int symbol_eq(symbol_t* sym, char* name);
 extern symbol_t* symbol_new(char* name,unsigned_t value);

@@ -3,12 +3,17 @@
 
 #define TAB "  "
 
-char* op_arith_name_00[] =  // funct7 == 0x00
+char* op_arith_name_00[] =
 {
     "add", "sll", "slt", "sltu", "xor", "srl", "or", "and"
 };
 
-char* op_arith_name_20[] =  // funct7 = 0x20
+char* op_arith_name_01[] =
+{
+    "mul", "mulh", "mulhsu", "mulhu", "div", "divu", "rem", "remu"
+};
+
+char* op_arith_name_20[] =
 {
     "sub", "sll", "slt", "sltu", "xor", "sra", "or", "and"
 };
@@ -80,6 +85,7 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 	fprintf(f, "%s", TAB);
 	switch(ip->funct7) {
 	case 0x00: fprintf(f, "%s", op_arith_name_00[ip->funct3]); break;
+	case 0x01: fprintf(f, "%s", op_arith_name_01[ip->funct3]); break;
 	case 0x20: fprintf(f, "%s", op_arith_name_20[ip->funct3]); break;
 	default: fprintf(f, "%s", "???"); break;
 	}

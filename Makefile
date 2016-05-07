@@ -6,10 +6,12 @@ OBJS = \
 	vasm_disasm.o \
 	vasm_asm.o \
 	vasm_emu.o \
+	vasm_rv32i.o \
+	vasm_rv32m.o \
 	version.o \
 	vasm.o
 
-CFLAGS += -g -MD
+CFLAGS += -Wall -g -MD
 
 vasm:	$(OBJS)
 	gcc -o $@ $(OBJS)
