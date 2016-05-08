@@ -104,7 +104,7 @@ int asm_iorw(vasm_ctx_t* ctx, token_t* tokens, int i, int* iorw)
     return i+1;
 }
 
-int asm_imm5(vasm_ctx_t* ctx, token_t* tokens, int i, int* imm)
+int asm_imm5(vasm_ctx_t* ctx, token_t* tokens, int i, int32_t* imm)
 {
     if (tokens[i].c == TOKEN_NUMBER)
 	*imm = to_int(tokens[i].name);
@@ -113,7 +113,7 @@ int asm_imm5(vasm_ctx_t* ctx, token_t* tokens, int i, int* imm)
     return i+1;
 }
 
-int asm_imm12(vasm_ctx_t* ctx, token_t* tokens, int i, int* imm)
+int asm_imm12(vasm_ctx_t* ctx, token_t* tokens, int i, int32_t* imm)
 {
     if (tokens[i].c == TOKEN_NUMBER)
 	*imm = to_int(tokens[i].name);
@@ -122,7 +122,7 @@ int asm_imm12(vasm_ctx_t* ctx, token_t* tokens, int i, int* imm)
     return i+1;
 }
 
-int asm_imm20(vasm_ctx_t* ctx, token_t* tokens, int i, int* imm)
+int asm_imm20(vasm_ctx_t* ctx, token_t* tokens, int i, int32_t* imm)
 {
     if (tokens[i].c == TOKEN_NUMBER)
 	*imm = to_int(tokens[i].name);
@@ -131,7 +131,7 @@ int asm_imm20(vasm_ctx_t* ctx, token_t* tokens, int i, int* imm)
     return i+1;
 }
 
-int asm_reladdr12(vasm_ctx_t* ctx, token_t* tokens, int i, int* imm)
+int asm_reladdr12(vasm_ctx_t* ctx, token_t* tokens, int i, int32_t* imm)
 {
     if (tokens[i].c == TOKEN_SYMBOL) {
 	*imm = lookup_jump_target(&ctx->symtab, tokens[i].name, ctx->rt.waddr);
@@ -156,7 +156,8 @@ int asm_reladdr20(vasm_ctx_t* ctx, token_t* tokens, int i, int* imm)
 //
 int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 {
-    int      imm=0, rd=0, rs1=0, rs2=0;
+    int32_t  imm=0;
+    int      rd=0, rs1=0, rs2=0;
     int      i, j;
     uint32_t seq;
     symbol_t* isym;
@@ -259,10 +260,11 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    if ((i = asm_imm12(ctx,tokens,i,&imm)) < 0)
 		goto syntax_error;
 	    break;
-	case ASM_IMM_20:
+	case ASM_UIMM_20:  // load upper 20 bits
 	    if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
 	    if ((i = asm_imm20(ctx,tokens,i,&imm)) < 0)
 		goto syntax_error;
+	    imm >>= 12;
 	    break;
 	case ASM_REL_12:
 	    if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }

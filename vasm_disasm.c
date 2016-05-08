@@ -227,7 +227,7 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 	// fixme: sign
 	fprintf(f, " %s, %d\n",
 		register_abi_name(ip->rd),
-		ip->imm31_12);
+		ip->imm31_12 << 12);
 	break;
     }
 
@@ -238,7 +238,7 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 	// fixme: sign
 	fprintf(f, " %s, %d\n",
 		register_abi_name(ip->rd),
-		ip->imm31_12);
+		ip->imm31_12 << 12);
 	break;
     }
 

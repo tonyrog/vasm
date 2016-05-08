@@ -107,22 +107,29 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	    }
 	    break;
 	case 0x01:
-#if defined(RV32M)
 	    switch(ip->funct3) {
+#if defined(RV32M)
 	    case FUNCT_MUL:
 		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) * rdr(ctx,ip->rs2));
 		break;
 	    case FUNCT_MULH: {
-		dreg_t r = rdr(ctx,ip->rs1) * rdr(ctx,ip->rs2);
+		dreg_t r = rdr(ctx,ip->rs1);
+		r *= rdr(ctx,ip->rs2);
 		wrr(ctx,ip->rd, r>>XLEN);
 		break;
 	    }
 	    case FUNCT_MULHSU: {
-		dreg_t r = rdr(ctx,ip->rs1) * (ureg_t)rdr(ctx,ip->rs2);
+		dreg_t r = rdr(ctx,ip->rs1);
+		r *= (ureg_t)rdr(ctx,ip->rs2);
 		wrr(ctx,ip->rd, r>>XLEN);
 		break;
 	    }
-	    case FUNCT_MULHU:
+	    case FUNCT_MULHU: {
+		udreg_t r = (ureg_t)rdr(ctx,ip->rs1);
+		r *= (ureg_t)rdr(ctx,ip->rs2);
+		wrr(ctx,ip->rd, r>>XLEN);
+		break;
+	    }
 	    case FUNCT_DIV: {
 		reg_t divisor = rdr(ctx,ip->rs2);
 		if (divisor == 0)
@@ -146,11 +153,31 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 		}
 		break;
 	    }
-	    case FUNCT_REM:
-		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) % rdr(ctx,ip->rs2));
+	    case FUNCT_REM: {
+		reg_t divisor = rdr(ctx,ip->rs2);
+		reg_t dividend = rdr(ctx,ip->rs1);
+		if (divisor == 0)
+		    wrr(ctx,ip->rd,dividend);
+		else {
+		    if (dividend == -(1 << (XLEN-1)))
+			wrr(ctx,ip->rd,0);
+		    else
+			wrr(ctx,ip->rd,dividend % divisor);
+		}
 		break;
-	    case FUNCT_REMU:
-		wrr(ctx,ip->rd,(ureg_t)rdr(ctx,ip->rs1) % (ureg_t)rdr(ctx,ip->rs2));
+	    }
+	    case FUNCT_REMU: {
+		ureg_t divisor = rdr(ctx,ip->rs2);
+		if (divisor == 0)
+		    wrr(ctx,ip->rd,0);
+		else {
+		    ureg_t dividend = rdr(ctx,ip->rs1);
+		    wrr(ctx,ip->rd,dividend % divisor);
+		}
+		break;
+	    }
+	    default:
+		break;
 	    }
 #endif
 	    break;

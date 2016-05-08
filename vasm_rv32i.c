@@ -139,9 +139,9 @@ symbol_t sym_instr_rv32i[] =
     SYM_INSTR_X(sltiu, OPCODE_IMM, FUNCT_SLTIU, FORMAT_I, 0,
 		ASM_SEQ3(ASM_REG_RD, ASM_REG_RS1, ASM_IMM_12)),
     SYM_INSTR_X(lui, OPCODE_LUI, 0, FORMAT_U, 0,
-		ASM_SEQ2(ASM_REG_RD, ASM_IMM_20)),
+		ASM_SEQ2(ASM_REG_RD, ASM_UIMM_20)),
     SYM_INSTR_X(auipc, OPCODE_AUIPC, 0, FORMAT_U, 0,
-		ASM_SEQ2(ASM_REG_RD, ASM_IMM_20)),
+		ASM_SEQ2(ASM_REG_RD, ASM_UIMM_20)),
     SYM_INSTR_X(lb, OPCODE_LOAD, FUNCT_LB, FORMAT_I, 0,
 		ASM_SEQ2(ASM_REG_RD, ASM_IMM_12_RS1)),
     SYM_INSTR_X(lbu, OPCODE_LOAD, FUNCT_LBU, FORMAT_I, 0,
@@ -206,17 +206,34 @@ symbol_t sym_instr_rv32i[] =
     SYM_INSTR_X(nop, OPCODE_IMM, FUNCT_ADDI, FORMAT_I, 0,
 		ASM_SEQ0()),
 
-    // j = jal x0,<imm>
+    // mv = addi rd,rs1,0
+    SYM_INSTR_X(mv, OPCODE_IMM, FUNCT_ADDI, FORMAT_I, 0,
+		ASM_SEQ2(ASM_REG_RD, ASM_REG_RS1)),
+
+    // seqz rd, rs1  = SLTIU rd, rs1, 1 - set equal zero
+    SYM_INSTR_X(seqz, OPCODE_IMM, FUNCT_SLTIU, FORMAT_I, 0,
+		ASM_SEQ3(ASM_REG_RD, ASM_REG_RS1, ASM_CONST_1)),
+
+    // snez rd, rs1  = SLTU rd, x0, rs2 - set not zero
+    SYM_INSTR_X(snez, OPCODE_ARITH, FUNCT_SLTU, FORMAT_R, 0,
+		ASM_SEQ2(ASM_REG_RD, ASM_REG_RS2)),
+
+    // not rd, rs1  = XORI rd, rs1, -1 - bitwise negation
+    SYM_INSTR_X(not, OPCODE_IMM, FUNCT_XORI, FORMAT_I, 0,
+		ASM_SEQ3(ASM_REG_RD, ASM_REG_RS1, ASM_CONST_MINUS_1)),
+
+    // j = jal x0,<imm>  - unconditional jump
     SYM_INSTR_X(j, OPCODE_JAL, 0, FORMAT_UJ, 0,
 		ASM_SEQ1(ASM_REL_20)),
 
-    // li = addi <r>,x0,<imm>
+    // li = addi <r>,x0,<imm>  - load 12bit immediate
     SYM_INSTR_X(li, OPCODE_IMM, FUNCT_ADDI, FORMAT_I, 0,
                 ASM_SEQ2(ASM_REG_RD, ASM_IMM_12)),
 
     // inc = addi <r>,<r>,1
     SYM_INSTR_X(inc, OPCODE_IMM, FUNCT_ADDI, FORMAT_I, 0,
                 ASM_SEQ3(ASM_REG_RD, ASM_COPY_RD_RS1, ASM_CONST_1)),
+
     // dec = addi <r>,<r>,-1
     SYM_INSTR_X(dec, OPCODE_IMM, FUNCT_ADDI, FORMAT_I, 0,
                 ASM_SEQ3(ASM_REG_RD, ASM_COPY_RD_RS1, ASM_CONST_MINUS_1)),

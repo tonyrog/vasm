@@ -55,6 +55,10 @@ enum {
 
     // pseudo instructions
     INSTR_nop_SI,
+    INSTR_mv_SI,
+    INSTR_seqz_SI,
+    INSTR_snez_SI,
+    INSTR_not_SI,
     INSTR_j_SI,
     INSTR_li_SI,
     INSTR_inc_SI,

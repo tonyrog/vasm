@@ -33,7 +33,7 @@ enum {
     ASM_REG_RS2,
     ASM_IMM_5,
     ASM_IMM_12,
-    ASM_IMM_20,
+    ASM_UIMM_20,
     ASM_REL_12,
     ASM_REL_20,
     ASM_IMM_12_RS1,

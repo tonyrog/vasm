@@ -14,6 +14,8 @@ enum {
     INSTR_remu_SI
 };
 
+#define FUNCT7_MULDIV 0x01
+
 // r-format ( OPCODE_ARITH )
 #define FUNCT_MUL     0  // funct7 = 0000001
 #define FUNCT_MULH    1  // funct7 = 0000001
