@@ -122,6 +122,7 @@ int main(int argc, char** argv)
 	fprintf(stderr, "sizeof(instr_ci) = %lu\n", sizeof(instr_ci));
 	fprintf(stderr, "sizeof(instr_css) = %lu\n", sizeof(instr_css));
 	fprintf(stderr, "sizeof(instr_ciw) = %lu\n", sizeof(instr_ciw));
+	fprintf(stderr, "sizeof(instr_cs) = %lu\n", sizeof(instr_cs));
 	fprintf(stderr, "sizeof(instr_cl) = %lu\n", sizeof(instr_cl));
 	fprintf(stderr, "sizeof(instr_cb) = %lu\n", sizeof(instr_cb));
 	fprintf(stderr, "sizeof(instr_cj) = %lu\n", sizeof(instr_cj));

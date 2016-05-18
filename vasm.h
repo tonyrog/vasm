@@ -14,6 +14,7 @@
 #include "vasm_symbol.h"
 #include "vasm_scan.h"
 #include "vasm_rt.h"
+#include "vasm_bits.h"
 
 typedef struct _vasm_ctx_t {
     vasm_rt_t  rt;
@@ -32,6 +33,8 @@ enum {
     ASM_REG_RS1,
     ASM_REG_RS2,
     ASM_IMM_5,
+    ASM_IMM_6,
+    ASM_IMM_8,
     ASM_IMM_12,
     ASM_UIMM_20,
     ASM_REL_12,
@@ -72,6 +75,7 @@ enum {
     FORMAT_CSS,
     FORMAT_CIW,
     FORMAT_CL,
+    FORMAT_CS,
     FORMAT_CB,
     FORMAT_CJ
 };
@@ -80,24 +84,19 @@ enum {
 #if defined(RV32M)
 #include "vasm_rv32m.h"
 #endif
+#if defined(RV32C)
+#include "vasm_rv32c.h"
+#endif
 
 static inline int32_t sign_extend(int32_t imm, int n)
 {
     return ((imm<<(32-n)) >> (32-n));
 }
 
-typedef union _instr_t {
-    uint32_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:7;
-	unsigned data:25;
-#else	
-	unsigned data:25;
-	unsigned opcode:7;
-#endif
-    };
-} instr_t;
+bit_struct(instr_t, {
+	unsigned_field(opcode,7);
+	unsigned_field(data,25);
+    });
 
 // instruction length
 #define OPCODE_IS_16BIT(op) (((op) & 0x3)  !=  0x3)
@@ -106,26 +105,15 @@ typedef union _instr_t {
 #define OPCODE_IS_64BIT(op) (((op) & 0x7f) == 0x3f)
 
 // add,sub,sll,srl,sra,and,or,xor,slt,sltu
-typedef union _instr_r {
-    uint32_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:7;
-	unsigned rd:5;
-	unsigned funct3:3;
-	unsigned rs1:5;
-	unsigned rs2:5;
-	unsigned funct7:7;
-#else
-	unsigned funct7:7;
-	unsigned rs2:5;
-	unsigned rs1:5;
-	unsigned funct3:3;
-	unsigned rd:5;
-	unsigned opcode:7;
-#endif
-    };
-} instr_r;
+bit_struct(instr_r,
+	   {
+	       unsigned_field(opcode, 7);
+	       unsigned_field(rd, 5);
+	       unsigned_field(funct3, 3);
+	       unsigned_field(rs1, 5);
+	       unsigned_field(rs2, 5);
+	       unsigned_field(funct7, 7);
+	   });
 
 // addi, slti, sltiu, xori, ori, andi, slli, srli, srai,
 // lb, lbu, lh, lhu, lw
@@ -133,301 +121,183 @@ typedef union _instr_r {
 // jalr
 // scall, sbreak, csrrw, csrrc, csrrs, csrrwi, csrrci, csrrso
 
-typedef union _instr_i {
-    uint32_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:7;
-	unsigned rd:5;
-	unsigned funct3:3;
-	unsigned rs1:5;
-	signed imm11_0:12;
-#else
-	signed imm11_0:12;
-	unsigned rs1:5;
-	unsigned funct3:3;
-	unsigned rd:5;
-	unsigned opcode:7;
-#endif
-    };
-} instr_i;
+bit_struct(instr_i,
+	   {
+	       unsigned_field(opcode, 7);
+	       unsigned_field(rd, 5);
+	       unsigned_field(funct3, 3);
+	       unsigned_field(rs1, 5);
+	       signed_field(imm11_0, 12);
+	   });
 
 // sb, sh, sw
-typedef union _instr_s {
-    uint32_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:7;
-	unsigned imm4_0:5;
-	unsigned funct3:3;
-	unsigned rs1:5;
-	unsigned rs2:5;
-	unsigned imm11_5:7;
-#else
-	unsigned imm11_5:7;
-	unsigned rs2:5;
-	unsigned rs1:5;
-	unsigned funct3:3;
-	unsigned imm4_0:5;
-	unsigned opcode:7;
-#endif
-    };
-} instr_s;
+bit_struct(instr_s, {
+	unsigned_field(opcode,7);
+	unsigned_field(imm4_0,5);
+	unsigned_field(funct3,3);
+	unsigned_field(rs1,5);
+	unsigned_field(rs2,5);
+	unsigned_field(imm11_5,7);
+    });
 
-static inline void set_imm_s(instr_s* instr, int imm12)
+static inline uint32_t set_imm_s(uint32_t ins, int imm12)
 {
-    instr->imm4_0  = imm12 & 0x1f;
-    instr->imm11_5 = imm12 >> 5;
+    ins = bitfield_store(instr_s, imm4_0, ins, imm12 & 0x1f);
+    ins = bitfield_store(instr_s, imm11_5, ins, imm12 >> 5);
+    return ins;
 }
 
-static inline int32_t get_imm_s(instr_s* instr)
+static inline int32_t get_imm_s(uint32_t ins)
 {
-    int32_t imm12 = ((instr->imm11_5 << 5) | (instr->imm4_0));
+    int32_t imm12 = 
+	(bitfield_fetch(instr_s, imm11_5, ins) << 5) |
+	bitfield_fetch(instr_s, imm4_0, ins);
     return sign_extend(imm12, 12);
 }
 
 // beq, bne, blt, bltu, bge, bgeu
-typedef union _instr_sb {
-    uint32_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:7;
-	unsigned imm11:1;
-	unsigned imm4_1:4;
-	unsigned funct3:3;
-	unsigned rs1:5;
-	unsigned rs2:5;
-	unsigned imm10_5:6;
-	unsigned imm12:1;
-#else
-	unsigned imm12:1;
-	unsigned imm10_5:6;
-	unsigned rs2:5;
-	unsigned rs1:5;
-	unsigned funct3:3;
-	unsigned imm4_1:4;
-	unsigned imm11:1;
-	unsigned opcode:7;
-#endif
-    };
-} instr_sb;
+bit_struct(instr_sb, {
+	unsigned_field(opcode,7);
+	unsigned_field(imm11,1);
+	unsigned_field(imm4_1,4);
+	unsigned_field(funct3,3);
+	unsigned_field(rs1,5);
+	unsigned_field(rs2,5);
+	unsigned_field(imm10_5,6);
+	unsigned_field(imm12,1);
+    });
 
-static inline void set_imm_sb(instr_sb* instr, int imm)
+static inline uint32_t set_imm_sb(uint32_t ins, int imm)
 {
-    instr->imm4_1  = (imm >> 1) & 0xf;
-    instr->imm10_5 = (imm >> 5) & 0x3f;
-    instr->imm11   = (imm >> 11) & 0x1;
-    instr->imm12   = (imm >> 12) & 0x1;
+    ins = bitfield_store(instr_sb, imm4_1,ins, (imm>>1) & 0xf);
+    ins = bitfield_store(instr_sb, imm10_5, ins, (imm >> 5) & 0x3f);
+    ins = bitfield_store(instr_sb, imm11, ins, (imm >> 11) & 0x1);
+    ins = bitfield_store(instr_sb, imm12, ins, (imm >> 12) & 0x1);
+    return ins;
 }
 
-static inline int32_t get_imm_sb(instr_sb* instr)
+static inline int32_t get_imm_sb(uint32_t ins)
 {
-    int32_t imm13 = ((instr->imm12<<12) | 
-		     (instr->imm11<<11) |
-		     (instr->imm10_5<<5) |
-		     (instr->imm4_1 << 1));
+    int32_t imm13 = 
+	(bitfield_fetch(instr_sb, imm12, ins) << 12) |
+	(bitfield_fetch(instr_sb, imm11, ins) << 11) |
+	(bitfield_fetch(instr_sb, imm10_5, ins) << 5) |
+	(bitfield_fetch(instr_sb, imm4_1, ins) << 1);
     return sign_extend(imm13, 13);
 }
 
 // lui, auipc
 
-typedef union _instr_u {
-    uint32_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:7;
-	unsigned rd:5;
-	unsigned imm31_12:20;
-#else
-	unsigned imm31_12:20;
-	unsigned rd:5;
-	unsigned opcode:7;
-#endif
-    };
-} instr_u;
+bit_struct(instr_u, {
+	unsigned_field(opcode,7);
+	unsigned_field(rd,5);
+	unsigned_field(imm31_12,20);
+    });
 
 // jal
-typedef union _instr_uj {
-    uint32_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:7;
-	unsigned rd:5;
-	unsigned imm19_12:8;
-	unsigned imm11:1;
-	unsigned imm10_1:10;
-	unsigned imm20:1;
-#else
-	unsigned imm20:1;
-	unsigned imm10_1:10;
-	unsigned imm11:1;
-	unsigned imm19_12:8;
-	unsigned rd:5;
-	unsigned opcode:7;
-#endif
-    };
-} instr_uj;
+bit_struct(instr_uj, {
+	unsigned_field(opcode,7);
+	unsigned_field(rd,5);
+	unsigned_field(imm19_12,8);
+	unsigned_field(imm11,1);
+	unsigned_field(imm10_1,10);
+	unsigned_field(imm20,1);
+    });
 
-static inline void set_imm_uj(instr_uj* instr, int imm)
+
+static inline uint32_t set_imm_uj(uint32_t ins, int imm)
 {
-    instr->imm19_12 = (imm >> 12) & 0xff;
-    instr->imm11    = (imm >> 11) & 1;
-    instr->imm10_1  = (imm >> 1) & 0x3ff;
-    instr->imm20    = (imm >> 20) & 0x1;
+    ins = bitfield_store(instr_uj, imm19_12, ins,  (imm >> 12) & 0xff);
+    ins = bitfield_store(instr_uj, imm11, ins,  (imm >> 11) & 1);
+    ins = bitfield_store(instr_uj, imm10_1, ins,  (imm >> 1) & 0x3ff);
+    ins = bitfield_store(instr_uj, imm20, ins,  (imm >> 20) & 1);
+    return ins;
 }
 
-static inline int32_t get_imm_uj(instr_uj* instr)
+static inline int32_t get_imm_uj(uint32_t ins)
 {
-    int32_t imm21 = ((instr->imm20 << 20) |
-		     (instr->imm19_12 << 12) |
-		     (instr->imm11 << 11) |
-		     (instr->imm10_1 << 1));
+    int32_t imm21 = 
+	(bitfield_fetch(instr_uj,imm20,ins) << 20) |
+	(bitfield_fetch(instr_uj,imm19_12,ins) << 12) |
+	(bitfield_fetch(instr_uj,imm11,ins) << 11) |
+	(bitfield_fetch(instr_uj,imm10_1,ins) << 1);
     return sign_extend(imm21, 21);
 }
 
-#if defined(RV32C)
-
-#define PACKED __attribute__ ((__packed__))
 // compressed formats 
-typedef union PACKED _instr_c {
-    uint16_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:2;
-	unsigned data:14;
-#else	
-	unsigned data:14;
-	unsigned opcode:2;
-#endif
-    };
-} instr_c;
+bit_struct(instr_c, {
+	unsigned_field(opcode,2);
+	unsigned_field(data,11);
+	unsigned_field(funct3,3);
+    });
 
-typedef union PACKED _instr_cr {
-    uint16_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:2;
-	unsigned rs2:5;
-	unsigned rd:5;
-	unsigned funct4:4;
-#else	
-	unsigned funct4:4;
-	unsigned rs1:5;
-	unsigned rd:5;
-	unsigned opcode:2;
-#endif
-    };
-} instr_cr;
+bit_struct(instr_cr, {
+	unsigned_field(opcode,2);
+	unsigned_field(rs2,5);
+	unsigned_field(rd,5);
+	unsigned_field(funct4,4);
+    });
 
-typedef union PACKED _instr_ci {
-    uint16_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:2;
-	unsigned imm4_0:5;
-	unsigned rs1:5;
-	unsigned imm5:1;
-	unsigned funct3:3;
-#else	
-	unsigned funct3:3;
-	unsigned imm5:1;
-	unsigned rs1:5;
-	unsigned imm4_0:5;
-	unsigned opcode:2;
-#endif
-    };
-} instr_ci;
+// Compressed Immediate
+bit_struct(instr_ci, {
+	unsigned_field(opcode,2);
+	unsigned_field(imm6_2,5);
+	unsigned_field(rd,5);
+	unsigned_field(imm12,1);
+	unsigned_field(funct3,3);
+    });
 
-typedef union PACKED _instr_css {
-    uint16_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:2;
-	unsigned rs2:5;
-	unsigned imm5_0:6;
-	unsigned funct3:3;
-#else	
-	unsigned funct3:3;
-	unsigned imm5_0:6;
-	unsigned rs2:5;
-	unsigned opcode:2;
-#endif
-    };
-} instr_css;
+// Compressed Stack-relative Store
+bit_struct(instr_css, {
+	unsigned_field(opcode,2);
+	unsigned_field(rs2,5);
+	unsigned_field(imm12_7,6);
+	unsigned_field(funct3,3);
+    });
 
-typedef union PACKED _instr_ciw {
-    uint16_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:2;
-	unsigned rd8:3;
-	unsigned imm7_0:8;
-	unsigned funct3:3;
-#else
-	unsigned funct3:3;
-	unsigned imm7_0:8;
-	unsigned rd8:3;
-	unsigned opcode:2;
-#endif
-    };
-} instr_ciw;
+// Wide Immediate
+bit_struct(instr_ciw, {
+	unsigned_field(opcode,2);
+	unsigned_field(rd,3);
+	unsigned_field(imm12_5,8);
+	unsigned_field(funct3,3);
+    });
 
-typedef union PACKED _instr_cl {
-    uint16_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:2;
-	unsigned cd:3;
-	unsigned imm1_0:2;
-	unsigned cs1:3;
-	unsigned imm4_2:3;
-	unsigned funct3:3;
-#else
-	unsigned funct3:3;
-	unsigned imm4_2:3;
-	unsigned cs1:3;
-	unsigned imm1_0:2;
-	unsigned cd:3;
-	unsigned opcode:2;
-#endif
-    };
-} instr_cl;
+// Compressed load
+bit_struct(instr_cl, {
+	unsigned_field(opcode,2);
+	unsigned_field(rd,3);
+	unsigned_field(imm6_5,2);
+	unsigned_field(rs1,3);
+	unsigned_field(imm12_10,3);
+	unsigned_field(funct3,3);
+    });
 
-typedef union PACKED _instr_cb {
-    uint16_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:2;
-	unsigned offsl:5;
-	unsigned cs1:3;
-	unsigned offsh:3;
-	unsigned funct3:3;
-#else
-	unsigned funct3:3;
-	unsigned offsh:3;
-	unsigned cs1:3;
-	unsigned offsl:5;
-	unsigned opcode:2;
-#endif
-    };
-} instr_cb;
+// Compressed store
+bit_struct(instr_cs, {
+	unsigned_field(opcode,2);
+	unsigned_field(rs2,3);
+	unsigned_field(imm6_5,2);
+	unsigned_field(rs1,3);
+	unsigned_field(imm12_10,3);
+	unsigned_field(funct3,3);
+    });
 
-typedef union PACKED _instr_cj {
-    uint16_t instruction;
-    struct {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	unsigned opcode:2;
-	signed offs:11;
-	unsigned funct3:3;
-#else
-	unsigned funct3:3;
-	signed offs:11;
-	unsigned opcode:2;
-#endif
-    };
-} instr_cj;
+// Compressed Branch
+bit_struct(instr_cb, {
+	unsigned_field(opcode,2);
+	unsigned_field(imm6_2,5);
+	unsigned_field(rs1,3);
+	unsigned_field(imm12_10,3);
+	unsigned_field(funct3,3);
+    });
 
-#endif
+// Compressed Jump
+bit_struct(instr_cj, {
+	unsigned_field(opcode,2);
+	signed_field(imm12_2,11);
+	unsigned_field(funct3,3);
+    });
 
 // vasm_asm.c
 
@@ -442,8 +312,6 @@ extern unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 extern void disasm(FILE* f, symbol_table_t* symtab, void* mem, size_t n);
 
 // vasm_emu.c
-extern unsigned_t get_operand(vasm_rt_t* ctx, int m, int r);
-extern void set_operand(vasm_rt_t* ctx, int m, int r, unsigned_t value);
 extern unsigned_t emu(vasm_rt_t* ctx, unsigned_t addr, void* mem);
 extern void dump_regs(FILE* f, vasm_rt_t* ctx);
 extern void run(FILE* f, symbol_table_t* symtab, vasm_rt_t* ctx, 

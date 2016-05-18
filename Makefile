@@ -8,6 +8,7 @@ OBJS = \
 	vasm_emu.o \
 	vasm_rv32i.o \
 	vasm_rv32m.o \
+	vasm_rv32c.o \
 	version.o \
 	vasm.o
 

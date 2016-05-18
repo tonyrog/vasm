@@ -9,6 +9,9 @@ void asm_init(symbol_table_t* symtab)
 #if defined(RV32M)
     vasm_rv32m_asm_init(symtab);
 #endif
+#if defined(RV32C)
+    vasm_rv32c_asm_init(symtab);
+#endif
 }
 
 // parse integer [-|+][0x|0b]dddddd
@@ -113,6 +116,24 @@ int asm_imm5(vasm_ctx_t* ctx, token_t* tokens, int i, int32_t* imm)
     return i+1;
 }
 
+int asm_imm6(vasm_ctx_t* ctx, token_t* tokens, int i, int32_t* imm)
+{
+    if (tokens[i].c == TOKEN_NUMBER)
+	*imm = to_int(tokens[i].name);
+    else
+	return -1;
+    return i+1;
+}
+
+int asm_imm8(vasm_ctx_t* ctx, token_t* tokens, int i, int32_t* imm)
+{
+    if (tokens[i].c == TOKEN_NUMBER)
+	*imm = to_int(tokens[i].name);
+    else
+	return -1;
+    return i+1;
+}
+
 int asm_imm12(vasm_ctx_t* ctx, token_t* tokens, int i, int32_t* imm)
 {
     if (tokens[i].c == TOKEN_NUMBER)
@@ -162,6 +183,8 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
     uint32_t seq;
     symbol_t* isym;
 
+#define NEXT_ARG if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
+
 #ifdef HARD_DEBUG
     if (ctx->debug) {
 	fprintf(stderr, "TOKENS: ");
@@ -187,14 +210,14 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    sym->value = ctx->rt.waddr;
 	    while(link) {
 		symbol_link_t* nlink = link->next;
-		instr_sb* instr = (instr_sb*) &ctx->rt.mem[link->addr];
+		uint32_t* instr = (uint32_t*) &ctx->rt.mem[link->addr];
 
 		if (ctx->debug) {
 		    fprintf(stderr, "resolve label %s @ %x = %d\n", 
 			    tokens[0].name,link->addr,
 			    sym->value - link->addr);
 		}
-		set_imm_sb(instr, sym->value - link->addr);
+		*instr = set_imm_sb(*instr, sym->value - link->addr);
 		symbol_link_free(link);
 		link = nlink;
 	    }
@@ -236,48 +259,58 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    imm = -1;
 	    break;
 	case ASM_REG_RD:
-	    if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
+	    NEXT_ARG;
 	    if ((i = asm_reg(ctx,tokens,i,&rd)) < 0)
 		goto syntax_error;
 	    break;
 	case ASM_REG_RS1:
-	    if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
+	    NEXT_ARG;
 	    if ((i = asm_reg(ctx,tokens,i,&rs1)) < 0)
 		goto syntax_error;
 	    break;
 	case ASM_REG_RS2:
-	    if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
+	    NEXT_ARG;
 	    if ((i = asm_reg(ctx,tokens,i,&rs2)) < 0)
 		goto syntax_error;
 	    break;
 	case ASM_IMM_5:
-	    if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
+	    NEXT_ARG;
 	    if ((i = asm_imm5(ctx,tokens,i,&imm)) < 0)
 		goto syntax_error;
 	    break;
+	case ASM_IMM_6:
+	    NEXT_ARG;
+	    if ((i = asm_imm6(ctx,tokens,i,&imm)) < 0)
+		goto syntax_error;
+	    break;
+	case ASM_IMM_8:
+	    NEXT_ARG;
+	    if ((i = asm_imm8(ctx,tokens,i,&imm)) < 0)
+		goto syntax_error;
+	    break;
 	case ASM_IMM_12:
-	    if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
+	    NEXT_ARG;
 	    if ((i = asm_imm12(ctx,tokens,i,&imm)) < 0)
 		goto syntax_error;
 	    break;
 	case ASM_UIMM_20:  // load upper 20 bits
-	    if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
+	    NEXT_ARG;
 	    if ((i = asm_imm20(ctx,tokens,i,&imm)) < 0)
 		goto syntax_error;
 	    imm >>= 12;
 	    break;
 	case ASM_REL_12:
-	    if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
+	    NEXT_ARG;
 	    if ((i = asm_reladdr12(ctx,tokens,i,&imm)) < 0)
 		goto syntax_error;
 	    break;
 	case ASM_REL_20:
-	    if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
+	    NEXT_ARG;
 	    if ((i = asm_reladdr20(ctx,tokens,i,&imm)) < 0)
 		goto syntax_error;
 	    break;
 	case ASM_IMM_12_RS1:  // optional imm12 (or 0) and rs1
-	    if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
+	    NEXT_ARG;
 	    if (tokens[i].c == '(')
 		i++;
 	    else {
@@ -293,8 +326,8 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 		goto syntax_error;
 	    break;
 	case ASM_IMM_IORW: {
-	    if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
 	    int tmp;
+	    NEXT_ARG;
 	    imm <<= 4;
 	    if ((i = asm_iorw(ctx,tokens,i,&tmp)) < 0)
 		goto syntax_error;
@@ -312,67 +345,111 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 
     switch(isym->format) {
     case FORMAT_R: {
-	instr_r* instr = (instr_r*) &ctx->rt.mem[ctx->rt.waddr];
-	instr->opcode = isym->opcode;
-	instr->rd = rd;
-	instr->funct3 = isym->funct & 0x7;
-	instr->rs1 = rs1;
-	instr->rs2 = rs2;
-	instr->funct7 = isym->funct >> 3;
+	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint32_t ins = 0;
+	ins = bitfield_store(instr_r, opcode, ins, isym->opcode);
+	ins = bitfield_store(instr_r, rd, ins, rd);
+	ins = bitfield_store(instr_r, funct3, ins, isym->funct & 0x7);
+	ins = bitfield_store(instr_r, rs1, ins, rs1);
+	ins = bitfield_store(instr_r, rs2, ins, rs2);
+	ins = bitfield_store(instr_r, funct7, ins, isym->funct >> 3);
+	*instr = ins;
+	fprintf(stderr, "%08x: format-r ins = %08x\n", ctx->rt.waddr, ins);
 	ctx->rt.waddr += 4;
 	return 0;
     }
     case FORMAT_I: {
-	instr_i* instr = (instr_i*) &ctx->rt.mem[ctx->rt.waddr];
-	instr->opcode = isym->opcode;
-	instr->rd = rd;
-	instr->funct3 = isym->funct & 0x7;
-	instr->rs1 = rs1;
-	instr->imm11_0 = imm | isym->value;
+	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint32_t ins = 0;
+	ins = bitfield_store(instr_i, opcode, ins, isym->opcode);
+	ins = bitfield_store(instr_i, rd, ins, rd);
+	ins = bitfield_store(instr_i, funct3, ins, isym->funct & 0x7);
+	ins = bitfield_store(instr_i, rs1, ins, rs1);
+	ins = bitfield_store(instr_i, imm11_0, ins, imm | isym->value);
+	*instr = ins;
+	fprintf(stderr, "%08x: format-i ins = %08x\n", ctx->rt.waddr, ins);
 	ctx->rt.waddr += 4;
 	return 0;
     }
     case FORMAT_S: {
-	instr_s* instr = (instr_s*) &ctx->rt.mem[ctx->rt.waddr];
-	instr->opcode = isym->opcode;
-	instr->rs1 = rs1;
-	instr->rs2 = rs2;
-	instr->funct3 = isym->funct & 0x7;
-	set_imm_s(instr, imm);
+	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint32_t ins = 0;
+	ins = bitfield_store(instr_s, opcode, ins, isym->opcode);
+	ins = bitfield_store(instr_s, rs1, ins, rs1);
+	ins = bitfield_store(instr_s, rs2, ins, rs2);
+	ins = bitfield_store(instr_s, funct3, ins, isym->funct & 0x7);
+	ins = set_imm_s(ins, imm);
+	*instr = ins;
+	fprintf(stderr, "%08x: format-s ins = %08x\n", ctx->rt.waddr, ins);
 	ctx->rt.waddr += 4;
 	return 0;
     }
     case FORMAT_SB: {
-	instr_sb* instr = (instr_sb*) &ctx->rt.mem[ctx->rt.waddr];
-	instr->opcode = isym->opcode;
-	set_imm_sb(instr, imm);
-	instr->funct3 = isym->funct & 0x7;
-	instr->rs1 = rs1;
-	instr->rs2 = rs2;
+	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint32_t ins = 0;
+	ins = bitfield_store(instr_sb, opcode, ins, isym->opcode);
+	ins = set_imm_sb(ins, imm);
+	ins = bitfield_store(instr_sb, funct3, ins, isym->funct & 0x7);
+	ins = bitfield_store(instr_sb, rs1, ins, rs1);
+	ins = bitfield_store(instr_sb, rs2, ins, rs2);
+	*instr = ins;
+	fprintf(stderr, "%08x: format-sb ins = %08x\n", ctx->rt.waddr, ins);
 	ctx->rt.waddr += 4;
 	return 0;
     }
     case FORMAT_U: {
-	instr_u* instr = (instr_u*) &ctx->rt.mem[ctx->rt.waddr];
-	instr->opcode = isym->opcode;
-	instr->rd = rd;
-	instr->imm31_12 = imm;
+	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint32_t ins = 0;
+	ins = bitfield_store(instr_u, opcode, ins, isym->opcode);
+	ins = bitfield_store(instr_u, rd, ins, rd);
+	ins = bitfield_store(instr_u, imm31_12, ins, imm);
+	*instr = ins;
+	fprintf(stderr, "%08x: format-u ins = %08x\n", ctx->rt.waddr, ins);
 	ctx->rt.waddr += 4;
 	return 0;
     }
     case FORMAT_UJ: {
-	instr_uj* instr = (instr_uj*) &ctx->rt.mem[ctx->rt.waddr];
-	instr->opcode = isym->opcode;
-	instr->rd = rd;
-	set_imm_uj(instr, imm);
+	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint32_t ins = 0;
+	ins = bitfield_store(instr_uj, opcode, ins, isym->opcode);
+	ins = bitfield_store(instr_uj, rd, ins, rd);
+	ins = set_imm_uj(ins, imm);
+	*instr = ins;
+	fprintf(stderr, "%08x: format-uj ins = %08x\n", ctx->rt.waddr, ins);
 	ctx->rt.waddr += 4;
 	return 0;
     }
-    case FORMAT_CR:
-    case FORMAT_CI:
+    case FORMAT_CR: {
+	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint32_t ins = 0;
+	ins = bitfield_store(instr_cr, opcode, ins, isym->opcode);
+	ins = bitfield_store(instr_cr, rs2, ins, rs2);
+	ins = bitfield_store(instr_cr, rd, ins, rd);
+	ins = bitfield_store(instr_cr, funct4, ins, isym->funct & 0xf);
+	*instr = ins;
+	fprintf(stderr, "%08x: format-cr ins = %08x\n", ctx->rt.waddr, ins);
+	ctx->rt.waddr += 2;
+	return 0;
+    }
+
+    case FORMAT_CI: {
+	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint32_t ins = 0;
+	imm |= isym->value;
+	ins = bitfield_store(instr_ci, opcode, ins, isym->opcode);
+	ins = bitfield_store(instr_ci, rd, ins, rd);
+	ins = bitfield_store(instr_ci, funct3, ins, isym->funct & 0x7);
+	ins = bitfield_store(instr_ci, imm6_2, ins, imm & 0x1f);
+	ins = bitfield_store(instr_ci, imm12, ins, (imm >> 5) & 1);
+	*instr = ins;
+	fprintf(stderr, "%08x: format-ci ins = %08x\n", ctx->rt.waddr, ins);
+	ctx->rt.waddr += 2;
+	return 0;
+    }
     case FORMAT_CSS:
     case FORMAT_CIW:
     case FORMAT_CL:
+    case FORMAT_CS:
     case FORMAT_CB:
     case FORMAT_CJ:
 	fprintf(stderr, "%s:%d internal error, %s format %d not yet defined\n",

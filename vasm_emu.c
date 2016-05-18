@@ -17,162 +17,214 @@ static inline void wrr(vasm_rt_t* ctx, int r, reg_t val)
 // if data is to be inflated put data in imem
 
 #if defined(RV32C) || defined(RV64C)
-static void* inflate(unsigned_t addr, void* mem, void* imem)
+uint32_t v64c_inflate(void* p, uint32_t ins)
 {
-    void* p = (void*) ((uint8_t*)mem + addr);
-    switch(((instr_c*)p)->opcode) {
-    case 0:
-	break;
-    case 1:
-	break;
-    case 2: {
-	instr_cr* instr = (instr_cr*) p;
-	switch(instr->funct4) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-	case 6:
-	case 7:
-	case 8:
-	case 9:
-	    if ((instr->rs2 != 0) && (instr->rd != 0)) {
-		instr_r* xinstr = (instr_r*) imem;
-		xinstr->opcode = OPCODE_ARITH;
-		xinstr->rd = instr->rd;
-		xinstr->rs1 = 0;  // zero
-		xinstr->rs2 = instr->rs2;
-		xinstr->funct3 = FUNCT_ADD;
-		xinstr->funct7 = 0x00;
-		return xinstr;
-	    }
-	    break;
-	case 10:
-	case 11:
-	case 12:
-	case 13:
-	case 14:
-	case 15:
+    switch(bitfield_fetch(instr_c,opcode,ins)) {
+    case OPCODE_C0:
+	switch(bitfield_fetch(instr_c,funct3,ins)) {
+	case FUNCT_C_ADDI4SPN:
+	case FUNCT_C_FLD:
+	case FUNCT_C_FLW:
+	case FUNCT_C_LD:
+	case FUNCT_C_FSD:
+	case FUNCT_C_SW:
+	case FUNCT_C_SD:
 	    break;
 	}
-    }
-    default:
+	break;
+    case OPCODE_C1:
+	switch(bitfield_fetch(instr_c,funct3,ins)) {
+	case FUNCT_C_NOP:
+//	case FUNCT_C_ADDI:
+	case FUNCT_C_ADDIW:
+	case FUNCT_C_LI:
+//	case FUNCT_C_ADDI16SP:
+	case FUNCT_C_LUI:
+	case FUNCT_C_SRLI:
+//	case FUNCT_C_SRAI:
+//	case FUNCT_C_ANDI:
+//	case FUNCT_C_SUB:
+//	case FUNCT_C_XOR:
+//	case FUNCT_C_OR:
+//	case FUNCT_C_AND:
+//	case FUNCT_C_SUBW:
+//	case FUNCT_C_ADDW:
+	case FUNCT_C_J:
+	case FUNCT_C_BEQZ:
+	case FUNCT_C_BNEZ:
+	    break;
+	}
+	break;
+    case OPCODE_C2:
+	switch(bitfield_fetch(instr_c,funct3,ins)) {
+	case FUNCT_C_SLLI:
+	case FUNCT_C_FLDSP:
+	case FUNCT_C_LWSP:
+	case FUNCT_C_LDSP:
+	case FUNCT_C_JR:
+//	case FUNCT_C_MV:
+//	case FUNCT_C_EBREAK:
+//	case FUNCT_C_JALR:
+//	case FUNCT_C_ADD:
+	    switch(bitfield_fetch(instr_cr,funct4,ins)) {
+	    case 8:
+		break;
+	    case 9:
+		if ((bitfield_fetch(instr_cr,rs2,ins) != 0) &&
+		    (bitfield_fetch(instr_cr,rd,ins) != 0)) {
+		    uint32_t ins1 = 0;
+		    ins1 = bitfield_store(instr_r, opcode, ins1, OPCODE_ARITH);
+		    ins1 = bitfield_store(instr_r, rd, ins1,
+					  bitfield_fetch(instr_cr,rd,ins));
+		    ins1 = bitfield_store(instr_r, rs1, ins1, 0);
+		    ins1 = bitfield_store(instr_r, rs2, ins1,
+					  bitfield_fetch(instr_cr,rs2,ins));
+		    ins1 = bitfield_store(instr_r, funct3, ins1, FUNCT_ADD);
+		    ins1 = bitfield_store(instr_r, funct7, ins1, 0);
+		    return ins1;
+		}
+		break;
+	    }
+	    break;
+	case FUNCT_C_FSDSP:
+	case FUNCT_C_SWSP:
+	case FUNCT_C_SDSP:
+	    break;
+	}
 	break;
     }
-    return p;
+    return 0;
 }
 #endif    
 
 // when implementing compressed instructions are 16bit aligned
 unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 {
-#if defined(RV32C) || defined(RV64C)
-    instr_t temp;
-    void* p = inflate(pc, mem, &temp);
-#else
     void* p = (void*) ((uint8_t*)mem + pc);
+    int rs1, rs2, rd, imm;
+#if BYTE_ORDER == LITTLE_ENDIAN
+    uint32_t ins = ((uint16_t*)p)[0];
+#else
+    uint32_t ins = ((uint8_t*)p)[0] | ((((uint8_t*)p)[1]) << 8);
 #endif
-    switch(((instr_t*)p)->opcode) {
+
+#if defined(RV32C) || defined(RV64C)
+    if (OPCODE_IS_16BIT(ins))
+	ins = v64c_inflate(p, ins);
+    else
+#endif
+    {
+#if BYTE_ORDER == LITTLE_ENDIAN
+	ins |= (((uint16_t*)p)[1] << 16);
+#else
+	ins |= (((uint8_t*)p)[2] | ((((uint8_t*)p)[3]) << 8)) << 16;
+#endif
+    }
+
+    switch(bitfield_fetch(instr_t,opcode,ins)) {
     case OPCODE_ARITH: {  // R-type
-	instr_r* ip = (instr_r*) p;
-	switch(ip->funct7) {
+	switch(bitfield_fetch(instr_r,funct7,ins)) {
 	case 0x00:
-	    switch(ip->funct3) {
+	    rd = bitfield_fetch(instr_r,rd,ins);
+	    rs1 = bitfield_fetch(instr_r,rs1,ins);
+	    rs2 = bitfield_fetch(instr_r,rs2,ins);
+	    switch(bitfield_fetch(instr_r,funct3,ins)) {
 	    case FUNCT_ADD:
-		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) + rdr(ctx,ip->rs2));
+		wrr(ctx,rd,rdr(ctx,rs1) + rdr(ctx,rs2));
 		break;
 	    case FUNCT_SLL:
-		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) << rdr(ctx,ip->rs2));
+		wrr(ctx,rd,rdr(ctx,rs1) << rdr(ctx,rs2));
 		break;
 	    case FUNCT_SLT:
-		wrr(ctx,ip->rd, (rdr(ctx,ip->rs1) < rdr(ctx,ip->rs2)));
+		wrr(ctx,rd, (rdr(ctx,rs1) < rdr(ctx,rs2)));
 		break;
 	    case FUNCT_SLTU:
-		wrr(ctx,ip->rd, ((ureg_t)rdr(ctx,ip->rs1) < (ureg_t)rdr(ctx,ip->rs2)));
+		wrr(ctx,rd, ((ureg_t)rdr(ctx,rs1) < (ureg_t)rdr(ctx,rs2)));
 		break;
 	    case FUNCT_XOR:
-		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) ^ rdr(ctx,ip->rs2));
+		wrr(ctx,rd,rdr(ctx,rs1) ^ rdr(ctx,rs2));
 		break;
 	    case FUNCT_SRL:
-		wrr(ctx,ip->rd,(ureg_t)rdr(ctx,ip->rs1) >> rdr(ctx,ip->rs2));
+		wrr(ctx,rd,(ureg_t)rdr(ctx,rs1) >> rdr(ctx,rs2));
 		break;
 	    case FUNCT_OR:
-		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) | rdr(ctx,ip->rs2));
+		wrr(ctx,rd,rdr(ctx,rs1) | rdr(ctx,rs2));
 		break;
 	    case FUNCT_AND:
-		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) & rdr(ctx,ip->rs2));
+		wrr(ctx,rd,rdr(ctx,rs1) & rdr(ctx,rs2));
 		break;
 	    }
 	    break;
 	case 0x01:
-	    switch(ip->funct3) {
+	    rd = bitfield_fetch(instr_r,rd,ins);
+	    rs1 = bitfield_fetch(instr_r,rs1,ins);
+	    rs2 = bitfield_fetch(instr_r,rs2,ins);
 #if defined(RV32M)
+	    switch(bitfield_fetch(instr_r,funct3,ins)) {
 	    case FUNCT_MUL:
-		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) * rdr(ctx,ip->rs2));
+		wrr(ctx,rd,rdr(ctx,rs1) * rdr(ctx,rs2));
 		break;
 	    case FUNCT_MULH: {
-		dreg_t r = rdr(ctx,ip->rs1);
-		r *= rdr(ctx,ip->rs2);
-		wrr(ctx,ip->rd, r>>XLEN);
+		dreg_t r = rdr(ctx,rs1);
+		r *= rdr(ctx,rs2);
+		wrr(ctx,rd, r>>XLEN);
 		break;
 	    }
 	    case FUNCT_MULHSU: {
-		dreg_t r = rdr(ctx,ip->rs1);
-		r *= (ureg_t)rdr(ctx,ip->rs2);
-		wrr(ctx,ip->rd, r>>XLEN);
+		dreg_t r = rdr(ctx,rs1);
+		r *= (ureg_t)rdr(ctx,rs2);
+		wrr(ctx,rd, r>>XLEN);
 		break;
 	    }
 	    case FUNCT_MULHU: {
-		udreg_t r = (ureg_t)rdr(ctx,ip->rs1);
-		r *= (ureg_t)rdr(ctx,ip->rs2);
-		wrr(ctx,ip->rd, r>>XLEN);
+		udreg_t r = (ureg_t)rdr(ctx,rs1);
+		r *= (ureg_t)rdr(ctx,rs2);
+		wrr(ctx,rd, r>>XLEN);
 		break;
 	    }
 	    case FUNCT_DIV: {
-		reg_t divisor = rdr(ctx,ip->rs2);
+		reg_t divisor = rdr(ctx,rs2);
 		if (divisor == 0)
-		    wrr(ctx,ip->rd,-1);
+		    wrr(ctx,rd,-1);
 		else {
-		    reg_t dividend = rdr(ctx,ip->rs1);
+		    reg_t dividend = rdr(ctx,rs1);
 		    if (dividend == -(1 << (XLEN-1)))
-			wrr(ctx,ip->rd,dividend);
+			wrr(ctx,rd,dividend);
 		    else
-			wrr(ctx,ip->rd,dividend / divisor);
+			wrr(ctx,rd,dividend / divisor);
 		}
 		break;
 	    }
 	    case FUNCT_DIVU: {
-		ureg_t divisor = (ureg_t)rdr(ctx,ip->rs2);
+		ureg_t divisor = (ureg_t)rdr(ctx,rs2);
 		if (divisor == 0)
-		    wrr(ctx,ip->rd,-1);
+		    wrr(ctx,rd,-1);
 		else {
-		    ureg_t dividend = (ureg_t) rdr(ctx,ip->rs1);
-		    wrr(ctx,ip->rd,dividend / divisor);
+		    ureg_t dividend = (ureg_t) rdr(ctx,rs1);
+		    wrr(ctx,rd,dividend / divisor);
 		}
 		break;
 	    }
 	    case FUNCT_REM: {
-		reg_t divisor = rdr(ctx,ip->rs2);
-		reg_t dividend = rdr(ctx,ip->rs1);
+		reg_t divisor = rdr(ctx,rs2);
+		reg_t dividend = rdr(ctx,rs1);
 		if (divisor == 0)
-		    wrr(ctx,ip->rd,dividend);
+		    wrr(ctx,rd,dividend);
 		else {
 		    if (dividend == -(1 << (XLEN-1)))
-			wrr(ctx,ip->rd,0);
+			wrr(ctx,rd,0);
 		    else
-			wrr(ctx,ip->rd,dividend % divisor);
+			wrr(ctx,rd,dividend % divisor);
 		}
 		break;
 	    }
 	    case FUNCT_REMU: {
-		ureg_t divisor = rdr(ctx,ip->rs2);
+		ureg_t divisor = rdr(ctx,rs2);
 		if (divisor == 0)
-		    wrr(ctx,ip->rd,0);
+		    wrr(ctx,rd,0);
 		else {
-		    ureg_t dividend = rdr(ctx,ip->rs1);
-		    wrr(ctx,ip->rd,dividend % divisor);
+		    ureg_t dividend = rdr(ctx,rs1);
+		    wrr(ctx,rd,dividend % divisor);
 		}
 		break;
 	    }
@@ -182,12 +234,15 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 #endif
 	    break;
 	case 0x20:
-	    switch(ip->funct3) {
+	    rd = bitfield_fetch(instr_r,rd,ins);
+	    rs1 = bitfield_fetch(instr_r,rs1,ins);
+	    rs2 = bitfield_fetch(instr_r,rs2,ins);
+	    switch(bitfield_fetch(instr_r,funct3,ins)) {
 	    case FUNCT_SUB:
-		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) - rdr(ctx,ip->rs2));
+		wrr(ctx,rd,rdr(ctx,rs1) - rdr(ctx,rs2));
 		break;
 	    case FUNCT_SRA:
-		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) >> rdr(ctx,ip->rs2));
+		wrr(ctx,rd,rdr(ctx,rs1) >> rdr(ctx,rs2));
 		break;
 	    default:
 		break;
@@ -199,58 +254,63 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	break;
     }
     case OPCODE_IMM: {   // I-type
-	instr_i* ip = (instr_i*) p;
-	switch(ip->funct3) {
+	rd = bitfield_fetch(instr_i,rd,ins);
+	rs1 = bitfield_fetch(instr_i,rs1,ins);
+	imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
+	switch(bitfield_fetch(instr_i,funct3,ins)) {
 	case FUNCT_ADDI:
-	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) + ip->imm11_0);
+	    wrr(ctx,rd,rdr(ctx,rs1) + imm);
 	    break;
 	case FUNCT_SLLI:
-	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) << ip->imm11_0);
+	    wrr(ctx,rd,rdr(ctx,rs1) << imm);
 	    break;
 	case FUNCT_SLTI:
-	    wrr(ctx,ip->rd,(rdr(ctx,ip->rs1) < ip->imm11_0));
+	    wrr(ctx,rd,(rdr(ctx,rs1) < imm));
 	    break;
 	case FUNCT_SLTIU:
-	    wrr(ctx,ip->rd,((ureg_t)rdr(ctx,ip->rs1) < (ureg_t)ip->imm11_0));
+	    wrr(ctx,rd,((ureg_t)rdr(ctx,rs1) < (ureg_t)imm));
 	    break;
 	case FUNCT_XORI:
-	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) ^ ip->imm11_0);
+	    wrr(ctx,rd,rdr(ctx,rs1) ^ imm);
 	    break;
 	case FUNCT_SRLI:  // imm11_0 = 0000000
      // case FUNCT_SRAI:   // imm11_0 = 0100000
-	    if (ip->imm11_0 == 0x00)
-		wrr(ctx,ip->rd, (ureg_t)rdr(ctx,ip->rs1) >> ip->imm11_0);
-	    else if (ip->imm11_0 == 0x20)
-		wrr(ctx,ip->rd,rdr(ctx,ip->rs1) >> ip->imm11_0);
+	    if (imm == 0x00)
+		wrr(ctx,rd, (ureg_t)rdr(ctx,rs1) >> imm);
+	    else if (imm == 0x20)
+		wrr(ctx,rd,rdr(ctx,rs1) >> imm);
 	    break;
 	case FUNCT_ORI:
-	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) | ip->imm11_0);
+	    wrr(ctx,rd,rdr(ctx,rs1) | imm);
 	    break;
 	case FUNCT_ANDI:
-	    wrr(ctx,ip->rd,rdr(ctx,ip->rs1) & ip->imm11_0);
+	    wrr(ctx,rd,rdr(ctx,rs1) & imm);
 	    break;
 	}
 	break;	
     }
 
     case OPCODE_LOAD: { // I-type
-	instr_i* ip = (instr_i*) p;
-	void* addr = (void*) ((uint8_t*)mem + rdr(ctx,ip->rs1)+ip->imm11_0);
-	switch(ip->funct3) {
+	void* addr;
+	rd = bitfield_fetch(instr_i,rd,ins);
+	rs1 = bitfield_fetch(instr_i,rs1,ins);
+	imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
+	addr = (void*) ((uint8_t*)mem + rdr(ctx,rs1)+imm);
+	switch(bitfield_fetch(instr_i,funct3,ins)) {
 	case FUNCT_LB:
-	    wrr(ctx,ip->rd, *((int8_t*)addr));
+	    wrr(ctx,rd,*((int8_t*)addr));
 	    break;
 	case FUNCT_LH:
-	    wrr(ctx,ip->rd,*((int16_t*)addr));
+	    wrr(ctx,rd,*((int16_t*)addr));
 	    break;
 	case FUNCT_LW:
-	    wrr(ctx,ip->rd,*((int32_t*)addr));
+	    wrr(ctx,rd,*((int32_t*)addr));
 	    break;
 	case FUNCT_LBU:
-	    wrr(ctx,ip->rd,*((uint8_t*)addr));
+	    wrr(ctx,rd,*((uint8_t*)addr));
 	    break;
 	case FUNCT_LHU:
-	    wrr(ctx,ip->rd,*((uint16_t*)addr));
+	    wrr(ctx,rd,*((uint16_t*)addr));
 	    break;
 	default:
 	    break;
@@ -265,17 +325,19 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	break;
 
     case OPCODE_STORE: {  // S-type
-	instr_s* ip = (instr_s*) p;
-	void* addr = (void*) ((uint8_t*)mem+rdr(ctx,ip->rs1)+get_imm_s(ip));
-	switch(ip->funct3) {
+	void* addr;
+	rs1 = bitfield_fetch(instr_s,rs1,ins);
+	rs2 = bitfield_fetch(instr_s,rs2,ins);
+	addr = (void*) ((uint8_t*)mem+rdr(ctx,rs1)+get_imm_s(ins));
+	switch(bitfield_fetch(instr_s,funct3,ins)) {
 	case FUNCT_SB:
-	    *((uint8_t*)addr) = rdr(ctx,ip->rs2);
+	    *((uint8_t*)addr) = rdr(ctx,rs2);
 	    break;
 	case FUNCT_SH:
-	    *((uint16_t*)addr) = rdr(ctx,ip->rs2);
+	    *((uint16_t*)addr) = rdr(ctx,rs2);
 	    break;
 	case FUNCT_SW:
-	    *((uint32_t*)addr) = rdr(ctx,ip->rs2);
+	    *((uint32_t*)addr) = rdr(ctx,rs2);
 	    break;
 	default:
 	    break;
@@ -284,58 +346,63 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
     }
 
     case OPCODE_BRANCH: { // SB-type
-	instr_sb* ip = (instr_sb*) p;
-	switch(ip->funct3) {
+	rs1 = bitfield_fetch(instr_sb,rs1,ins);
+	rs2 = bitfield_fetch(instr_sb,rs2,ins);
+	switch(bitfield_fetch(instr_sb,funct3,ins)) {
 	case FUNCT_BEQ:
-	    if (rdr(ctx,ip->rs1) == rdr(ctx,ip->rs2))
-		return pc + get_imm_sb(ip);
+	    if (rdr(ctx,rs1) == rdr(ctx,rs2))
+		return pc + get_imm_sb(ins);
 	    break;
 	case FUNCT_BNE:
-	    if (rdr(ctx,ip->rs1) != rdr(ctx,ip->rs2))
-		return pc + get_imm_sb(ip);
+	    if (rdr(ctx,rs1) != rdr(ctx,rs2))
+		return pc + get_imm_sb(ins);
 	    break;
 	case FUNCT_BLT:
-	    if (rdr(ctx,ip->rs1) < rdr(ctx,ip->rs2))
-		return pc + get_imm_sb(ip);
+	    if (rdr(ctx,rs1) < rdr(ctx,rs2))
+		return pc + get_imm_sb(ins);
 	    break;
 	case FUNCT_BGE:
-	    if (rdr(ctx,ip->rs1) >= rdr(ctx,ip->rs2))
-		return pc + get_imm_sb(ip);
+	    if (rdr(ctx,rs1) >= rdr(ctx,rs2))
+		return pc + get_imm_sb(ins);
 	    break;
 	case FUNCT_BLTU:
-	    if ((ureg_t)rdr(ctx,ip->rs1) < (ureg_t)rdr(ctx,ip->rs2))
-		return pc + get_imm_sb(ip);
+	    if ((ureg_t)rdr(ctx,rs1) < (ureg_t)rdr(ctx,rs2))
+		return pc + get_imm_sb(ins);
 	    break;
 	case FUNCT_BGEU:
-	    if ((ureg_t)rdr(ctx,ip->rs1) >= (ureg_t)rdr(ctx,ip->rs2))
-		return pc + get_imm_sb(ip);
+	    if ((ureg_t)rdr(ctx,rs1) >= (ureg_t)rdr(ctx,rs2))
+		return pc + get_imm_sb(ins);
 	    break;
 	}
 	break;
     }
     case OPCODE_LUI:  { // U-type
-	instr_u* ip = (instr_u*) p;
-	wrr(ctx,ip->rd,(ip->imm31_12 << 12));
+	rd = bitfield_fetch(instr_u,rd,ins);
+	imm = bitfield_fetch(instr_u,imm31_12,ins);
+	wrr(ctx,rd,(imm << 12));
 	break;
     }
     case OPCODE_AUIPC: { // U-type
-	instr_u* ip = (instr_u*) p;
-	wrr(ctx,ip->rd, ctx->pc + (ip->imm31_12 << 12));
+	rd = bitfield_fetch(instr_u,rd,ins);
+	imm = bitfield_fetch(instr_u,imm31_12,ins);
+	wrr(ctx,rd, ctx->pc + (imm << 12));
 	break;
     }
 
     case OPCODE_JALR: {
-	instr_i* ip = (instr_i*) p;
+	rs1 = bitfield_fetch(instr_i,rs1,ins);
+	rd = bitfield_fetch(instr_i,rd,ins);
+	imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
 	reg_t pc1;
-	wrr(ctx,ip->rd,ctx->pc + 4);
-	pc1 = (ip->imm11_0 + rdr(ctx,ip->rs1)) & ~1;
+	wrr(ctx,rd,ctx->pc + 4);
+	pc1 = (imm + rdr(ctx,rs1)) & ~1;
 	return pc1;
     }
 	
     case OPCODE_JAL: {   // Uj-type
-	instr_uj* ip = (instr_uj*) p;
-	wrr(ctx,ip->rd,ctx->pc + 4);
-	return pc + get_imm_uj(ip);
+	rd = bitfield_fetch(instr_uj,rd,ins);	
+	wrr(ctx,rd,ctx->pc + 4);
+	return pc + get_imm_uj(ins);
     }
 
     }
