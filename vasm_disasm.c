@@ -93,10 +93,12 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 	    case FUNCT_C_ADDI4SPN:
 	    case FUNCT_C_FLD:
 	    case FUNCT_C_FLW:
-	    case FUNCT_C_LD:
+		// case FUNCT_C_LD:
 	    case FUNCT_C_FSD:
+		// case FUNCT_C_SQ:
 	    case FUNCT_C_SW:
-	    case FUNCT_C_SD:
+	    case FUNCT_C_FSW:
+		// case FUNCT_C_SD:
 		break;
 	    }
 	    break;
