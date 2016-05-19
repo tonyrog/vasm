@@ -25,6 +25,11 @@ typedef uint64_t udreg_t;
 #define word_size XLEN
 #define word_mask (XLEN-1)
 
+// "constants" that try to avoid compiler overflow
+#define XMIN_SIGNED   ((-(1<<(XLEN-2))) << 1)
+#define XMAX_SIGNED   ((((1<<(XLEN-2))-1)<< 1)+1)
+#define XMAX_UNSIGNED ((((1<<(XLEN-1))-1)<< 1)+1)
+
 #if defined(RV32E)
 #define NUM_REGISTERS 16
 #else
