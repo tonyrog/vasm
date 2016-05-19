@@ -188,7 +188,7 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 		    wrr(ctx,rd,-1);
 		else {
 		    reg_t dividend = rdr(ctx,rs1);
-		    if (dividend == -(1 << (XLEN-1)))
+		    if (dividend == XMIN_SIGNED)
 			wrr(ctx,rd,dividend);
 		    else
 			wrr(ctx,rd,dividend / divisor);
@@ -211,7 +211,7 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 		if (divisor == 0)
 		    wrr(ctx,rd,dividend);
 		else {
-		    if (dividend == -(1 << (XLEN-1)))
+		    if (dividend == XMIN_SIGNED)
 			wrr(ctx,rd,0);
 		    else
 			wrr(ctx,rd,dividend % divisor);
