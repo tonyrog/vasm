@@ -258,6 +258,12 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	case ASM_CONST_MINUS_1:
 	    imm = -1;
 	    break;
+	case ASM_RD_X0:
+	    rd = 0;
+	    break;
+	case ASM_RD_X1:
+	    rd = 1;
+	    break;
 	case ASM_REG_RD:
 	    NEXT_ARG;
 	    if ((i = asm_reg(ctx,tokens,i,&rd)) < 0)

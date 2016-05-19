@@ -51,46 +51,57 @@ enum {
 // r-format
 #define OPCODE_C0  0x0
 #define FUNCT_C_ADDI4SPN   0
-#define FUNCT_C_FLD        1
-#define FUNCT_C_FLW        2
-#define FUNCT_C_LD         3
-#define FUNCT_C_FSD        5
+#define FUNCT_C_FLD        1  // RV32/64
+#define FUNCT_C_LQ         1  // RV128
+#define FUNCT_C_LW         2  // 
+#define FUNCT_C_FLW        3  // RV32
+#define FUNCT_C_LD         3  // RV64/128
+#define FUNCT_C_FSD        5  // RV32/64
+#define FUNCT_C_SQ         5  // RV128
 #define FUNCT_C_SW         6
-#define FUNCT_C_SD         7
+#define FUNCT_C_FSW        7  // RV32
+#define FUNCT_C_SD         7  // RV64/RV128
 
 #define OPCODE_C1  0x1
 #define FUNCT_C_NOP        0
 #define FUNCT_C_ADDI       0
-#define FUNCT_C_ADDIW      1
+#define FUNCT_C_JAL        1  // RV32
+#define FUNCT_C_ADDIW      1  // RV64/128
 #define FUNCT_C_LI         2
 #define FUNCT_C_ADDI16SP   3
 #define FUNCT_C_LUI        3
-#define FUNCT_C_SRLI       4
-#define FUNCT_C_SRAI       4
+#define FUNCT_C_SRLI       4  // RV32
+#define FUNCT_C_SRLI64     4  // RV128; RV32/64
+#define FUNCT_C_SRAI       4  // RV32
+#define FUNCT_C_SRAI64     4  // RV128; RV32/64
 #define FUNCT_C_ANDI       4
 #define FUNCT_C_SUB        4
 #define FUNCT_C_XOR        4
 #define FUNCT_C_OR         4
 #define FUNCT_C_AND        4
-#define FUNCT_C_SUBW       4
-#define FUNCT_C_ADDW       4
+#define FUNCT_C_SUBW       4  // RV64/128
+#define FUNCT_C_ADDW       4  // RV64/128
 #define FUNCT_C_J          5
 #define FUNCT_C_BEQZ       6
 #define FUNCT_C_BNEZ       7
 
 #define OPCODE_C2 0x2
-#define FUNCT_C_SLLI       0
-#define FUNCT_C_FLDSP      1
+#define FUNCT_C_SLLI       0  // RV32
+#define FUNCT_C_SLLI64     0  // RV128/RV32/64
+#define FUNCT_C_FLDSP      1  // RV32/64
 #define FUNCT_C_LWSP       2
-#define FUNCT_C_LDSP       3
+#define FUNCT_C_FLWSP      3  // RV32
+#define FUNCT_C_LDSP       3  // RV64/128
 #define FUNCT_C_JR         4
 #define FUNCT_C_MV         4
 #define FUNCT_C_EBREAK     4
 #define FUNCT_C_JALR       4
 #define FUNCT_C_ADD        4
-#define FUNCT_C_FSDSP      5
-#define FUNCT_C_SWSP       6
-#define FUNCT_C_SDSP       7
+#define FUNCT_C_FSDSP      5  // RV32/64
+#define FUNCT_C_FSQSP      5  // RV128
+#define FUNCT_C_SWSP       6  //
+#define FUNCT_C_FSWSP      7  // RV32
+#define FUNCT_C_SDSP       7  // RV64/128
 
 extern int vasm_rv32c_asm_init(symbol_table_t* symtab);
 

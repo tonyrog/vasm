@@ -44,6 +44,8 @@ enum {
     ASM_COPY_RD_RS1,
     ASM_CONST_1,
     ASM_CONST_MINUS_1,
+    ASM_RD_X0,
+    ASM_RD_X1,
     // MAX 32!
 };
 
