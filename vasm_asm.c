@@ -3,17 +3,6 @@
 
 #define HARD_DEBUG
 
-void asm_init(symbol_table_t* symtab) 
-{
-    vasm_rv32i_asm_init(symtab);
-#if defined(RV32M)
-    vasm_rv32m_asm_init(symtab);
-#endif
-#if defined(RV32C)
-    vasm_rv32c_asm_init(symtab);
-#endif
-}
-
 // parse integer [-|+][0x|0b]dddddd
 int to_int(char* ptr)
 {
@@ -37,6 +26,10 @@ int to_int(char* ptr)
     else if ((ptr[0] == '0') && (ptr[1] == 'b')) {
 	base = 2;
 	ptr += 2;
+    }
+    else if ((ptr[0] == '0') && (isdigit(ptr[1]))) {
+	base = 8;
+	ptr += 1;
     }
     while(*ptr) {
 	if (isdigit(*ptr))
@@ -86,6 +79,22 @@ int asm_reg(vasm_ctx_t* ctx, token_t* tokens, int i, int* reg)
     return -1;
 }
 
+// Note that abi names must be mapped correctly before this is useful
+int asm_creg(vasm_ctx_t* ctx, token_t* tokens, int i, int* reg)
+{
+    if (tokens[i].c == TOKEN_SYMBOL) {
+	symbol_t* symr = symbol_table_lookup(&ctx->symtab, tokens[i].name);
+	if ((symr != NULL) && ((symr->flags & SYMBOL_FLAG_REG) != 0)) {
+	    if ((symr->index >= 8) && (symr->index < 16)) {
+		*reg = symr->index-8;
+		return i+1;
+	    }
+	    return -1;
+	}
+    }
+    return -1;
+}
+
 int asm_iorw(vasm_ctx_t* ctx, token_t* tokens, int i, int* iorw)
 {
     char* ptr;
@@ -107,7 +116,7 @@ int asm_iorw(vasm_ctx_t* ctx, token_t* tokens, int i, int* iorw)
     return i+1;
 }
 
-int asm_imm5(vasm_ctx_t* ctx, token_t* tokens, int i, int32_t* imm)
+int asm_shamt5(vasm_ctx_t* ctx, token_t* tokens, int i, int32_t* imm)
 {
     if (tokens[i].c == TOKEN_NUMBER)
 	*imm = to_int(tokens[i].name);
@@ -181,7 +190,7 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
     int      rd=0, rs1=0, rs2=0;
     int      i, j;
     uint32_t seq;
-    symbol_t* isym;
+    symbol_t* sym;
 
 #define NEXT_ARG if (j) { if (tokens[i].c != ',') goto syntax_error; i++; } else { j++; }
 
@@ -199,10 +208,8 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	symbol_t* sym;
 	sym = symbol_table_lookup(&ctx->symtab, tokens[i].name);
 	if (sym == NULL) {
-	    if (ctx->debug) {
-		fprintf(stderr, "define label %s @ %d\n", 
-			tokens[0].name,ctx->rt.waddr);
-	    }
+	    DEBUGF(ctx, "define label %s @ %d\n",
+		   tokens[0].name,ctx->rt.waddr);
 	    sym = symbol_table_add(&ctx->symtab, tokens[0].name,ctx->rt.waddr);
 	}
 	else if (sym->flags & SYMBOL_FLAG_FORWARD) {
@@ -212,11 +219,9 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 		symbol_link_t* nlink = link->next;
 		uint32_t* instr = (uint32_t*) &ctx->rt.mem[link->addr];
 
-		if (ctx->debug) {
-		    fprintf(stderr, "resolve label %s @ %x = %d\n", 
-			    tokens[0].name,link->addr,
-			    sym->value - link->addr);
-		}
+		DEBUGF(ctx, "resolve label %s @ %x = %d\n", 
+		       tokens[0].name,link->addr, sym->value - link->addr);
+
 		*instr = set_imm_sb(*instr, sym->value - link->addr);
 		symbol_link_free(link);
 		link = nlink;
@@ -234,9 +239,9 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
     if (tokens[i].c != TOKEN_SYMBOL)
 	goto syntax_error;
     
-    isym = symbol_table_lookup(&ctx->symtab, tokens[i].name);
+    sym = symbol_table_lookup(&ctx->symtab, tokens[i].name);
     // fprintf(stderr, "isym = %p\n", isym);
-    if ((isym == NULL) || ((isym->flags & SYMBOL_FLAG_INSTR) == 0)) {
+    if ((sym == NULL) || ((sym->flags & SYMBOL_FLAG_INSTR) == 0)) {
 	fprintf(stderr, "%s:%d unknown opcode %s\n", 
 		ctx->filename, ctx->lineno, tokens[i].name);
 	return -1;
@@ -244,7 +249,7 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
     i++;
 
     // parse arguments according to symbol sequence info
-    seq = isym->sequence;
+    seq = sym->sequence;
     j = 0;
 
     while(seq) {
@@ -252,21 +257,19 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	case ASM_COPY_RD_RS1:  // copy RD to RS1
 	    rs1 = rd;
 	    break;
-	case ASM_CONST_1:
-	    imm = 1;
-	    break;
-	case ASM_CONST_MINUS_1:
-	    imm = -1;
-	    break;
-	case ASM_RD_X0:
-	    rd = 0;
-	    break;
-	case ASM_RD_X1:
-	    rd = 1;
-	    break;
+	case ASM_CONST_0: imm = 0; break;
+	case ASM_CONST_1: imm = 1; break;
+	case ASM_CONST_MINUS_1: imm = -1; break;
+	case ASM_RD_X0: rd = 0; break;
+	case ASM_RD_X1: rd = 1; break;
 	case ASM_REG_RD:
 	    NEXT_ARG;
 	    if ((i = asm_reg(ctx,tokens,i,&rd)) < 0)
+		goto syntax_error;
+	    break;
+	case ASM_REG_CRD:
+	    NEXT_ARG;
+	    if ((i = asm_creg(ctx,tokens,i,&rd)) < 0)
 		goto syntax_error;
 	    break;
 	case ASM_REG_RS1:
@@ -274,14 +277,24 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    if ((i = asm_reg(ctx,tokens,i,&rs1)) < 0)
 		goto syntax_error;
 	    break;
+	case ASM_REG_CRS1:
+	    NEXT_ARG;
+	    if ((i = asm_creg(ctx,tokens,i,&rs1)) < 0)
+		goto syntax_error;
+	    break;
 	case ASM_REG_RS2:
 	    NEXT_ARG;
 	    if ((i = asm_reg(ctx,tokens,i,&rs2)) < 0)
 		goto syntax_error;
 	    break;
-	case ASM_IMM_5:
+	case ASM_REG_CRS2:
 	    NEXT_ARG;
-	    if ((i = asm_imm5(ctx,tokens,i,&imm)) < 0)
+	    if ((i = asm_creg(ctx,tokens,i,&rs2)) < 0)
+		goto syntax_error;
+	    break;
+	case ASM_SHAMT_5:
+	    NEXT_ARG;
+	    if ((i = asm_shamt5(ctx,tokens,i,&imm)) < 0)
 		goto syntax_error;
 	    break;
 	case ASM_IMM_6:
@@ -346,124 +359,162 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    return -1;
 	}
 	seq >>= 5;
-	j++;
     }
 
-    switch(isym->format) {
+    switch(sym->format) {
     case FORMAT_R: {
 	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
 	uint32_t ins = 0;
-	ins = bitfield_store(instr_r, opcode, ins, isym->opcode);
 	ins = bitfield_store(instr_r, rd, ins, rd);
-	ins = bitfield_store(instr_r, funct3, ins, isym->funct & 0x7);
 	ins = bitfield_store(instr_r, rs1, ins, rs1);
 	ins = bitfield_store(instr_r, rs2, ins, rs2);
-	ins = bitfield_store(instr_r, funct7, ins, isym->funct >> 3);
-	*instr = ins;
-	fprintf(stderr, "%08x: format-r ins = %08x\n", ctx->rt.waddr, ins);
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s R %08x\n",ctx->rt.waddr,sym->name,*instr);
 	ctx->rt.waddr += 4;
 	return 0;
     }
+
     case FORMAT_I: {
 	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
 	uint32_t ins = 0;
-	ins = bitfield_store(instr_i, opcode, ins, isym->opcode);
 	ins = bitfield_store(instr_i, rd, ins, rd);
-	ins = bitfield_store(instr_i, funct3, ins, isym->funct & 0x7);
 	ins = bitfield_store(instr_i, rs1, ins, rs1);
-	ins = bitfield_store(instr_i, imm11_0, ins, imm | isym->value);
-	*instr = ins;
-	fprintf(stderr, "%08x: format-i ins = %08x\n", ctx->rt.waddr, ins);
+	ins = bitfield_store(instr_i, imm11_0, ins, imm);
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s I %08x\n",ctx->rt.waddr,sym->name,*instr);
 	ctx->rt.waddr += 4;
 	return 0;
     }
+
     case FORMAT_S: {
 	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
 	uint32_t ins = 0;
-	ins = bitfield_store(instr_s, opcode, ins, isym->opcode);
 	ins = bitfield_store(instr_s, rs1, ins, rs1);
 	ins = bitfield_store(instr_s, rs2, ins, rs2);
-	ins = bitfield_store(instr_s, funct3, ins, isym->funct & 0x7);
 	ins = set_imm_s(ins, imm);
-	*instr = ins;
-	fprintf(stderr, "%08x: format-s ins = %08x\n", ctx->rt.waddr, ins);
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s S %08x\n",ctx->rt.waddr,sym->name,*instr);
 	ctx->rt.waddr += 4;
 	return 0;
     }
+
     case FORMAT_SB: {
 	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
 	uint32_t ins = 0;
-	ins = bitfield_store(instr_sb, opcode, ins, isym->opcode);
 	ins = set_imm_sb(ins, imm);
-	ins = bitfield_store(instr_sb, funct3, ins, isym->funct & 0x7);
 	ins = bitfield_store(instr_sb, rs1, ins, rs1);
 	ins = bitfield_store(instr_sb, rs2, ins, rs2);
-	*instr = ins;
-	fprintf(stderr, "%08x: format-sb ins = %08x\n", ctx->rt.waddr, ins);
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s SB %08x\n",ctx->rt.waddr,sym->name,*instr);
 	ctx->rt.waddr += 4;
 	return 0;
     }
+
     case FORMAT_U: {
 	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
 	uint32_t ins = 0;
-	ins = bitfield_store(instr_u, opcode, ins, isym->opcode);
 	ins = bitfield_store(instr_u, rd, ins, rd);
 	ins = bitfield_store(instr_u, imm31_12, ins, imm);
-	*instr = ins;
-	fprintf(stderr, "%08x: format-u ins = %08x\n", ctx->rt.waddr, ins);
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s U %08x\n",ctx->rt.waddr,sym->name,*instr);
 	ctx->rt.waddr += 4;
 	return 0;
     }
+
     case FORMAT_UJ: {
 	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
 	uint32_t ins = 0;
-	ins = bitfield_store(instr_uj, opcode, ins, isym->opcode);
 	ins = bitfield_store(instr_uj, rd, ins, rd);
 	ins = set_imm_uj(ins, imm);
-	*instr = ins;
-	fprintf(stderr, "%08x: format-uj ins = %08x\n", ctx->rt.waddr, ins);
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s UJ %08x\n",ctx->rt.waddr,sym->name,*instr);
 	ctx->rt.waddr += 4;
 	return 0;
     }
+
     case FORMAT_CR: {
-	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
-	uint32_t ins = 0;
-	ins = bitfield_store(instr_cr, opcode, ins, isym->opcode);
+	uint16_t* instr = (uint16_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint16_t ins = 0;
 	ins = bitfield_store(instr_cr, rs2, ins, rs2);
 	ins = bitfield_store(instr_cr, rd, ins, rd);
-	ins = bitfield_store(instr_cr, funct4, ins, isym->funct & 0xf);
-	*instr = ins;
-	fprintf(stderr, "%08x: format-cr ins = %08x\n", ctx->rt.waddr, ins);
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s CR %04x\n",ctx->rt.waddr,sym->name,*instr);
 	ctx->rt.waddr += 2;
 	return 0;
     }
 
     case FORMAT_CI: {
-	uint32_t* instr = (uint32_t*) &ctx->rt.mem[ctx->rt.waddr];
-	uint32_t ins = 0;
-	imm |= isym->value;
-	ins = bitfield_store(instr_ci, opcode, ins, isym->opcode);
+	uint16_t* instr = (uint16_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint16_t ins = 0;
 	ins = bitfield_store(instr_ci, rd, ins, rd);
-	ins = bitfield_store(instr_ci, funct3, ins, isym->funct & 0x7);
 	ins = bitfield_store(instr_ci, imm6_2, ins, imm & 0x1f);
 	ins = bitfield_store(instr_ci, imm12, ins, (imm >> 5) & 1);
-	*instr = ins;
-	fprintf(stderr, "%08x: format-ci ins = %08x\n", ctx->rt.waddr, ins);
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s CI %04x\n",ctx->rt.waddr,sym->name,*instr);
 	ctx->rt.waddr += 2;
 	return 0;
     }
-    case FORMAT_CSS:
-    case FORMAT_CIW:
-    case FORMAT_CL:
-    case FORMAT_CS:
-    case FORMAT_CB:
-    case FORMAT_CJ:
-	fprintf(stderr, "%s:%d internal error, %s format %d not yet defined\n",
-		ctx->filename, ctx->lineno, tokens[i].name, isym->format);	
-	return -1;
+
+    case FORMAT_CSS: {
+	uint16_t* instr = (uint16_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint16_t ins = 0;
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s CSS %04x\n",ctx->rt.waddr,sym->name,*instr);
+	ctx->rt.waddr += 2;
+	return 0;	
+    }
+
+    case FORMAT_CIW: {
+	uint16_t* instr = (uint16_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint16_t ins = 0;
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s CSS %04x\n",ctx->rt.waddr,sym->name,*instr);
+	ctx->rt.waddr += 2;
+	return 0;	
+    }
+
+    case FORMAT_CL: {
+	uint16_t* instr = (uint16_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint16_t ins = 0;
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s CL %04x\n",ctx->rt.waddr,sym->name,*instr);
+	ctx->rt.waddr += 2;
+	return 0;	
+    }
+
+    case FORMAT_CS: {
+	uint16_t* instr = (uint16_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint16_t ins = 0;
+	ins = bitfield_store(instr_cs, rs2, ins, rs2);
+	ins = bitfield_store(instr_cs, rd, ins, rd);
+	ins = bitfield_store(instr_cs, imm12_10, ins, (imm << 2));
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s CS %04x\n",ctx->rt.waddr,sym->name,*instr);
+	ctx->rt.waddr += 2;
+	return 0;
+    }
+
+    case FORMAT_CB: {
+	uint16_t* instr = (uint16_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint16_t ins = 0;
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s CB %04x\n",ctx->rt.waddr,sym->name,*instr);
+	ctx->rt.waddr += 2;
+	return 0;
+    }
+
+    case FORMAT_CJ: {
+	uint16_t* instr = (uint16_t*) &ctx->rt.mem[ctx->rt.waddr];
+	uint16_t ins = 0;
+	*instr = ins | sym->code;
+	DEBUGF(ctx, "%08x: %s CJ %04x\n",ctx->rt.waddr,sym->name,*instr);
+	ctx->rt.waddr += 2;
+	return 0;
+    }
+
     default:
 	fprintf(stderr, "%s:%d internal error, %s format %d\n",
-		ctx->filename, ctx->lineno, tokens[i].name, isym->format);	
+		ctx->filename, ctx->lineno, tokens[i].name, sym->format);	
 	return -1;
     }
 

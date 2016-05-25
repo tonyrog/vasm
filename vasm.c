@@ -15,18 +15,31 @@
 #define MAX_TOKENS       1024
 #define LINE_BUFFER_SIZE 1024
 
-int vasm_ctx_init(vasm_ctx_t* ctx)
+
+int vasm_init(vasm_ctx_t* ctx)
 {
     memset(ctx->rt.reg, 0, sizeof(ctx->rt.reg));
     ctx->rt.mem_size = MEMORY_SIZE;
     ctx->rt.waddr = 0;
     ctx->rt.pc = 0;
-    symbol_table_init(&ctx->symtab);
     ctx->filename = "";
     ctx->lineno = 0;
     ctx->debug = 0;
     ctx->verbose = 0;
-    asm_init(&ctx->symtab);
+
+    symbol_table_init(&ctx->symtab);
+
+    vasm_rv32i_asm_init(&ctx->symtab);
+#if defined(RV32M)
+    vasm_rv32m_asm_init(&ctx->symtab);
+#endif
+#if defined(RV32C)
+    vasm_rv32c_asm_init(&ctx->symtab);
+#endif
+    
+    symbol_table_sort(&ctx->symtab);
+    // symbol_table_dump(stdout, &ctx->symtab);
+    symbol_tree_init(&ctx->symtab);
     return 0;
 }
 
@@ -56,7 +69,7 @@ int main(int argc, char** argv)
     char* run_label = NULL;
     int c;
 
-    vasm_ctx_init(&ctx);
+    vasm_init(&ctx);
 
     while((c = getopt(argc, argv, "vdt:o:r:")) != -1) {
 	switch(c) {
@@ -98,8 +111,14 @@ int main(int argc, char** argv)
     }
 
     if (optind >= argc) {
-	f = stdin;
-	ctx.filename = "*stdin*";
+	if (strcmp(out_type, "emu") == 0) {
+	    f = NULL;
+	    ctx.filename = "*null*";
+	}
+	else {
+	    f = stdin;
+	    ctx.filename = "*stdin*";
+	}
     }
     else {
 	ctx.filename = argv[optind];
@@ -129,30 +148,32 @@ int main(int argc, char** argv)
 #endif
     }
 
-    // assemble file
-    while(fgets(ctx.linebuf, sizeof(ctx.linebuf), f)) {
-	char token_data[LINE_BUFFER_SIZE*2];
-	token_t tokens[MAX_TOKENS];
-	size_t len = strlen(ctx.linebuf);
-	int n;
+    if (f != NULL) {
+	// assemble file
+	while(fgets(ctx.linebuf, sizeof(ctx.linebuf), f)) {
+	    char token_data[LINE_BUFFER_SIZE*2];
+	    token_t tokens[MAX_TOKENS];
+	    size_t len = strlen(ctx.linebuf);
+	    int n;
 
-	if (ctx.linebuf[len-1] == '\n')
-	    ctx.linebuf[len-1] = '\0';
-	ctx.lineno++;
+	    if (ctx.linebuf[len-1] == '\n')
+		ctx.linebuf[len-1] = '\0';
+	    ctx.lineno++;
 #ifdef HARD_DEBUG
-	if (ctx.debug) {
-	    fprintf(stderr, "%s:%d: [%s]\n", 
-		    ctx.filename, ctx.lineno, ctx.linebuf);
-	}
+	    if (ctx.debug) {
+		fprintf(stderr, "%s:%d: [%s]\n", 
+			ctx.filename, ctx.lineno, ctx.linebuf);
+	    }
 #endif
-	if ((n = scan(ctx.linebuf, token_data, tokens, MAX_TOKENS)) > 0) {
-	    tokens[n].c = 0;
-	    tokens[n].name = NULL;
-	    assemble(&ctx, tokens, n);
+	    if ((n = scan(ctx.linebuf, token_data, tokens, MAX_TOKENS)) > 0) {
+		tokens[n].c = 0;
+		tokens[n].name = NULL;
+		assemble(&ctx, tokens, n);
+	    }
 	}
+	if (f != stdin)
+	    fclose(f);
     }
-    if (f != stdin)
-	fclose(f);
 
     if (out_file == NULL)
 	f = stdout;
@@ -165,6 +186,9 @@ int main(int argc, char** argv)
 	;
     else if (strcmp(out_type, "c") == 0) {
 	gen_ccode(f, &ctx.symtab, ctx.rt.mem, ctx.rt.waddr);
+    }
+    else if (strcmp(out_type, "emu") == 0) {
+	gen_emu(f, &ctx.symtab);
     }
     else if (strcmp(out_type, "vasm") == 0) {
 	disasm(f, &ctx.symtab, ctx.rt.mem, ctx.rt.waddr);

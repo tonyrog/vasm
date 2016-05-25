@@ -1,54 +1,6 @@
 #include <stdio.h>
 #include "vasm.h"
 
-#define TAB "  "
-
-char* op_arith_name_00[] =
-{
-    "add", "sll", "slt", "sltu", "xor", "srl", "or", "and"
-};
-
-char* op_arith_name_01[] =
-{
-    "mul", "mulh", "mulhsu", "mulhu", "div", "divu", "rem", "remu"
-};
-
-char* op_arith_name_20[] =
-{
-    "sub", "sll", "slt", "sltu", "xor", "sra", "or", "and"
-};
-
-char* op_imm_name_00[] = // imm11_0 = 0x00
-{
-    "addi", "slli", "slti", "sltiu", "xori", "srli", "ori", "andi"
-};
-
-char* op_imm_name_20[] =  // imm11_0 = 0x20
-{
-    "addi", "slli", "slti", "sltiu", "xori", "srai", "ori", "andi"
-};
-
-char* op_load_name[] =
-{
-    "lb", "lh", "lw", "???", "lbu", "lhu", "???", "???"
-};
-
-char* op_fence_name[] =
-{
-    "fence", "fence.i", "???", "???", "???", "???", "???", "???"
-};
-
-char* op_store_name[] =
-{
-    "sb", "sh", "sw", "???", "???", "???", "???", "???"
-};
-
-char* op_branch_name[] =
-{
-    "beq", "bne", "???", "???", "blt", "bge", "bltu", "bgeu"
-};
-
-
 char* iorw_name[] = 
 {
            // IORW
@@ -79,7 +31,15 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 			unsigned_t addr,void* mem)
 {
     void* p = (void*) ((uint8_t*)mem+addr);
-#if BYTE_ORDER == LITTLE_ENDIAN    
+    int32_t  imm=0;
+    int      rd=0, rs1=0, rs2=0;
+    int      j;
+    uint32_t seq;
+    symbol_t* sym;
+    unsigned_t addr1;
+
+
+#if BYTE_ORDER == LITTLE_ENDIAN
     uint32_t ins = ((uint16_t*)p)[0];
 #else
     uint32_t ins = ((uint8_t*)p)[0] | ((((uint8_t*)p)[1]) << 8);
@@ -87,64 +47,9 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 
 #if defined(RV32C)
     if (OPCODE_IS_16BIT(ins)) {
-	switch(bitfield_fetch(instr_c,opcode,ins)) {
-	case OPCODE_C0:
-	    switch(bitfield_fetch(instr_c,funct3,ins)) {
-	    case FUNCT_C_ADDI4SPN:
-	    case FUNCT_C_FLD:
-	    case FUNCT_C_FLW:
-//	    case FUNCT_C_LD:
-	    case FUNCT_C_FSD:
-		// case FUNCT_C_SQ:
-	    case FUNCT_C_SW:
-	    case FUNCT_C_FSW:
-		// case FUNCT_C_SD:
-		break;
-	    }
-	    break;
-	case OPCODE_C1:
-	    switch(bitfield_fetch(instr_c,funct3,ins)) {
-	    case FUNCT_C_NOP:
-//	    case FUNCT_C_ADDI:
-	    case FUNCT_C_ADDIW:
-	    case FUNCT_C_LI:
-//	    case FUNCT_C_ADDI16SP:
-	    case FUNCT_C_LUI:
-	    case FUNCT_C_SRLI:
-//	    case FUNCT_C_SRAI:
-//	    case FUNCT_C_ANDI:
-//	    case FUNCT_C_SUB:
-//	    case FUNCT_C_XOR:
-//	    case FUNCT_C_OR:
-//	    case FUNCT_C_AND:
-//	    case FUNCT_C_SUBW:
-//	    case FUNCT_C_ADDW:
-	    case FUNCT_C_J:
-	    case FUNCT_C_BEQZ:
-	    case FUNCT_C_BNEZ:
-		break;
-	    }
-	    break;
-	case OPCODE_C2:
-	    switch(bitfield_fetch(instr_c,funct3,ins)) {
-	    case FUNCT_C_SLLI:
-	    case FUNCT_C_FLDSP:
-	    case FUNCT_C_LWSP:
-	    case FUNCT_C_LDSP:
-	    case FUNCT_C_JR:
-//	    case FUNCT_C_MV:
-//	    case FUNCT_C_EBREAK:
-//	    case FUNCT_C_JALR:
-//	    case FUNCT_C_ADD:
-	    case FUNCT_C_FSDSP:
-	    case FUNCT_C_SWSP:
-	    case FUNCT_C_SDSP:
-		break;
-	    }
-	    break;
-	}
+	addr1 = addr+2;
+	goto decode;
     }
-    return addr+2;
 #endif
 
 #if BYTE_ORDER == LITTLE_ENDIAN
@@ -152,198 +57,151 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 #else
     ins |= (((uint8_t*)p)[2] | ((((uint8_t*)p)[3]) << 8)) << 16;
 #endif
+    addr1 = addr+4;
+
+decode:
+    if ((sym = symbol_lookup(symtab, ins)) == NULL) {
+	printf("%08x: %08x ???\n", addr, ins);
+	return addr+4;
+    }
+
     fprintf(f, "%08x: ", addr);
+    fprintf(f, "%08x m=%08x c=%08x ", ins, sym->mask, sym->code);
+    fprintf(f, "%s ", sym->name);
 
-    switch(bitfield_fetch(instr_t,opcode,ins)) {
-    case OPCODE_ARITH: {    // R-type
-	int funct3 = bitfield_fetch(instr_r,funct3,ins);
-	fprintf(f, "%s", TAB);
-	switch(bitfield_fetch(instr_r,funct7,ins)) {
-	case 0x00: fprintf(f, "%s", op_arith_name_00[funct3]); break;
-	case 0x01: fprintf(f, "%s", op_arith_name_01[funct3]); break;
-	case 0x20: fprintf(f, "%s", op_arith_name_20[funct3]); break;
-	default: fprintf(f, "%s", "???"); break;
-	}
-	fprintf(f, " %s, %s, %s", 
-		register_abi_name(bitfield_fetch(instr_r,rd,ins)), 
-		register_abi_name(bitfield_fetch(instr_r,rs1,ins)),
-		register_abi_name(bitfield_fetch(instr_r,rs2,ins)));
-	break;
-    }
 
-    case OPCODE_IMM: {  // I-type
-	int funct3 = bitfield_fetch(instr_i,funct3,ins);
-	int imm;
-	int tab = 0x00;
-	fprintf(f, "%s", TAB);
-	switch(funct3) {
-	case FUNCT_SLLI:
-	    imm = bitfield_fetch_signed(instr_i,imm11_0,ins)>>4;
-	    break;
-	case FUNCT_SRLI:
-	    imm = bitfield_fetch_signed(instr_i,imm11_0,ins) & 0x1f;
-	    if ((bitfield_fetch_signed(instr_i,imm11_0,ins)>>4) == 0x20)
-		tab = 0x20;
-	    break;
-	default:
-	    imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
-	    break;
-	}
-	switch(tab) {
-	case 0x00: fprintf(f, "%s", op_imm_name_00[funct3]); break;
-	case 0x20: fprintf(f, "%s", op_imm_name_20[funct3]); break;
-	default: 
-	    fprintf(f, "%s imm11_0=%x", "???",
-		    bitfield_fetch_signed(instr_i,imm11_0,ins));
-	    break;
-	}
-	fprintf(f, " %s, %s, %d",
-		register_abi_name(bitfield_fetch(instr_i,rd,ins)), 
-		register_abi_name(bitfield_fetch(instr_i,rs1,ins)),
-		imm);
+    // extract arguments
+    switch(sym->format) {
+    case FORMAT_R:
+	rd = bitfield_fetch(instr_r, rd, ins);
+	rs1 = bitfield_fetch(instr_r, rs1, ins);
+	rs2 = bitfield_fetch(instr_r, rs2, ins);	
 	break;
-    }
-
-    case OPCODE_LOAD: {  // I-type
-	int funct3 = bitfield_fetch(instr_i,funct3,ins);
-
-	fprintf(f, "%s", TAB);
-	fprintf(f, "%s", op_load_name[funct3]);
-	fprintf(f, " %s, %d(%s)",
-		register_abi_name(bitfield_fetch(instr_i,rd,ins)),
-		bitfield_fetch_signed(instr_i,imm11_0,ins),
-		register_abi_name(bitfield_fetch(instr_i,rs1,ins)));
+    case FORMAT_I:
+	rd = bitfield_fetch(instr_i, rd, ins);
+	rs1 = bitfield_fetch(instr_i, rs1, ins);
+	imm = bitfield_fetch(instr_i, imm11_0, ins);
 	break;
-    }
-
-    case OPCODE_FENCE:  {  // I-typ
-	int funct3 = bitfield_fetch(instr_i,funct3,ins);
-	int imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
-	fprintf(f, "%s", TAB);
-	fprintf(f, "%s", op_fence_name[funct3]);
-	if (funct3 == FUNCT_FENCE) {
-	    fprintf(f, " %s, %s", 
-		    iorw(imm >> 4),
-		    iorw(imm));
-	}
+    case FORMAT_S:
+	rs1 = bitfield_fetch(instr_s, rs1, ins);
+	rs2 = bitfield_fetch(instr_s, rs2, ins);
+	imm = get_imm_s(ins);
 	break;
-    }
-
-    case OPCODE_SYS:  {  // I-type
-	int imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
-	fprintf(f, "%s", TAB);
-	switch(imm & 0xfff) {
-	case 0x000:
-	    fprintf(f, "%s", "scall");
-	    break;
-	case 0x001:
-	    fprintf(f, "%s", "sbreak");
-	    break;
-	case 0xc00:
-	    fprintf(f, "%s", "rdcycle");
-	    fprintf(f, " %s", 
-		    register_abi_name(bitfield_fetch(instr_i,rd,ins)));
-	    break;
-	case 0xc80:
-	    fprintf(f, "%s", "rdcycleh");
-	    fprintf(f, " %s", 
-		    register_abi_name(bitfield_fetch(instr_i,rd,ins)));
-	    break;
-	case 0xc01:
-	    fprintf(f, "%s", "rdtime");
-	    fprintf(f, " %s",
-		    register_abi_name(bitfield_fetch(instr_i,rd,ins)));
-	    break;
-	case 0xc81:
-	    fprintf(f, "%s", "rdtimeh");
-	    fprintf(f, " %s",
-		    register_abi_name(bitfield_fetch(instr_i,rd,ins)));
-	    break;
-	case 0xc02:
-	    fprintf(f, "%s", "rdinstret");
-	    fprintf(f, " %s",
-		    register_abi_name(bitfield_fetch(instr_i,rd,ins)));
-	    break;
-	case 0xc82:
-	    fprintf(f, "%s", "rdinstreth");
-	    fprintf(f, " %s", 
-		    register_abi_name(bitfield_fetch(instr_i,rd,ins)));
-	    break;
-	default:
-	    fprintf(f, "%s  imm11_0=%x", "???", imm);
-	    fprintf(f, " %s, %s", 
-		    register_abi_name(bitfield_fetch(instr_i,rd,ins)),
-		    register_abi_name(bitfield_fetch(instr_i,rs1,ins)));
-	    break;
-	}
+    case FORMAT_SB:
+	imm = get_imm_sb(ins);
+	rs1 = bitfield_fetch(instr_sb, rs1, ins);
+	rs2 = bitfield_fetch(instr_sb, rs2, ins);
 	break;
-    }
-
-    case OPCODE_STORE:  { // S-type
-	int funct3 = bitfield_fetch(instr_s,funct3,ins);
-	fprintf(f, "%s", TAB);
-	fprintf(f, "%s", op_store_name[funct3]);
-	fprintf(f, " %s, %d(%s)",
-		register_abi_name(bitfield_fetch(instr_s,rs1,ins)), 
-		get_imm_s(ins),
-		register_abi_name(bitfield_fetch(instr_s,rs2,ins)));
+    case FORMAT_U:
+	rd = bitfield_fetch(instr_u, rd, ins);
+	imm = bitfield_fetch(instr_u, imm31_12, ins);
 	break;
-    }
-
-    case OPCODE_BRANCH: { // SB-type
-	int funct3 = bitfield_fetch(instr_sb,funct3,ins);
-	fprintf(f, "%s", TAB);
-	fprintf(f, "%s", op_branch_name[funct3]);
-	// fixme: sign
-	fprintf(f, " %s, %s, %d",
-		register_abi_name(bitfield_fetch(instr_sb,rs1,ins)),
-		register_abi_name(bitfield_fetch(instr_sb,rs2,ins)),
-		get_imm_sb(ins));
+    case FORMAT_UJ:
+	rd = bitfield_fetch(instr_uj, rd, ins);
+	imm = get_imm_uj(ins);
 	break;
-    }
-    case OPCODE_LUI: {  // U-type
-	fprintf(f, "%s", TAB);
-	fprintf(f, "%s", "lui");
-	// fixme: sign
-	fprintf(f, " %s, %d",
-		register_abi_name(bitfield_fetch(instr_u,rd,ins)),
-		bitfield_fetch(instr_u,imm31_12,ins) << 12);
+    case FORMAT_CR:
+	rs2 = bitfield_fetch(instr_cr, rs2, ins);
+	rd = bitfield_fetch(instr_cr, rd, ins);	
 	break;
-    }
-
-    case OPCODE_AUIPC: { // U-type
-	fprintf(f, "%s", TAB);
-	fprintf(f, "%s", "auipc");
-	// fixme: sign
-	fprintf(f, " %s, %d",
-		register_abi_name(bitfield_fetch(instr_u,rd,ins)),
-		bitfield_fetch(instr_u,imm31_12,ins) << 12);
+    case FORMAT_CI:
+	rd = bitfield_fetch(instr_ci, rd, ins);
+	imm = bitfield_fetch(instr_ci, imm6_2, ins) |
+	    (bitfield_fetch(instr_ci, imm12, ins) << 5);
 	break;
-    }
-
-    case OPCODE_JALR:  {  // I-type
-	fprintf(f, "%s", TAB);
-	fprintf(f, "%s", "jalr");
-	fprintf(f, " %s, %d(%s)",
-		register_abi_name(bitfield_fetch(instr_i,rd,ins)),
-		bitfield_fetch_signed(instr_i,imm11_0,ins),
-		register_abi_name(bitfield_fetch(instr_i,rs1,ins)));
+    case FORMAT_CSS:
+    case FORMAT_CIW:
+    case FORMAT_CL:
 	break;
-    }
-
-    case OPCODE_JAL: {  // Uj-type
-	fprintf(f, "%s", TAB);
-	fprintf(f, "%s", "jal");
-	fprintf(f, " %s, %d",
-		register_abi_name(bitfield_fetch(instr_uj,rd,ins)),
-		get_imm_uj(ins));
+    case FORMAT_CS:
+	rs2 = bitfield_fetch(instr_cs, rs2, ins);
+	rd = bitfield_fetch(instr_cs, rd, ins);
+	imm = bitfield_fetch(instr_cs, imm12_10, ins) << 2;
 	break;
-    }
+    case FORMAT_CB:
+    case FORMAT_CJ:
+	break;
     default:
 	break;
     }
-    fprintf(f, " [%08x]\n", ins);
-    return addr+4;
+
+    seq = sym->sequence;
+    j = 0;
+
+#define NEXT_ARG if (j) { fprintf(f, ","); } else { j++; }
+    // format arguments according to spec
+    while(seq) {
+	switch(seq & 0x1f) {
+	case ASM_COPY_RD_RS1:  break;
+	case ASM_CONST_0: break;
+	case ASM_CONST_1: break;
+	case ASM_CONST_MINUS_1: break;
+	case ASM_RD_X0: break;
+	case ASM_RD_X1: break;
+	case ASM_REG_RD:
+	    NEXT_ARG;
+	    fprintf(f, "%s", register_abi_name(rd));
+	    break;
+	case ASM_REG_CRD:
+	    NEXT_ARG;
+	    fprintf(f, "%s", register_abi_name(rd+8));
+	    break;
+	case ASM_REG_RS1:
+	    NEXT_ARG;
+	    fprintf(f, "%s", register_abi_name(rs1));
+	    break;
+	case ASM_REG_CRS1:
+	    NEXT_ARG;
+	    fprintf(f, "%s", register_abi_name(rs1+8));
+	    break;
+	case ASM_REG_RS2:
+	    NEXT_ARG;
+	    fprintf(f, "%s", register_abi_name(rs2));
+	    break;
+	case ASM_REG_CRS2:
+	    NEXT_ARG;
+	    fprintf(f, "%s", register_abi_name(rs2+8));
+	    break;
+	case ASM_SHAMT_5:
+	    NEXT_ARG;
+	    fprintf(f, "%d", imm & 0x1f);
+	    break;
+	case ASM_IMM_6:
+	case ASM_IMM_8:
+	case ASM_IMM_12:
+	    NEXT_ARG;
+	    fprintf(f, "%d", imm);
+	    break;
+	case ASM_UIMM_20:  // load upper 20 bits
+	    NEXT_ARG;
+	    fprintf(f, "%d", imm << 12);
+	    break;
+	case ASM_REL_12:
+	case ASM_REL_20:
+	    NEXT_ARG;
+	    fprintf(f, "%d", imm);
+	    break;
+	case ASM_IMM_12_RS1:  // optional imm12 (or 0) and rs1
+	    NEXT_ARG;
+	    if (imm == 0)
+		fprintf(f, "(%s)", register_abi_name(rs1));
+	    else
+		fprintf(f, "%d(%s)", imm, register_abi_name(rs1));
+	    break;
+	case ASM_IMM_IORW:  // only works for two iorw arguments!
+	    NEXT_ARG;
+	    fprintf(f, "%s", iorw_name[(imm>>4)&0xf]);
+	    imm <<= 4;
+	    break;
+	default:
+	    fprintf(f, "?");
+	    break;
+	}
+	seq >>= 5;
+    }
+    fprintf(f, "\n");
+
+    return addr1;
 }
 
 void disasm(FILE* f, symbol_table_t* symtab,  void* mem, size_t max_addr)

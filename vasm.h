@@ -26,13 +26,22 @@ typedef struct _vasm_ctx_t {
     int        verbose;
 } vasm_ctx_t;
 
+#define DEBUGF(ctx, fmt, ...) do {		\
+	if ((ctx)->debug) {			\
+	    fprintf(stderr, fmt, __VA_ARGS__);	\
+	}					\
+    } while(0)
+
 // 5 bit parser directive 6 tokens allowed
 enum {
     ASM_END,
     ASM_REG_RD,
+    ASM_REG_CRD,
     ASM_REG_RS1,
+    ASM_REG_CRS1,
     ASM_REG_RS2,
-    ASM_IMM_5,
+    ASM_REG_CRS2,
+    ASM_SHAMT_5,
     ASM_IMM_6,
     ASM_IMM_8,
     ASM_IMM_12,
@@ -42,6 +51,7 @@ enum {
     ASM_IMM_12_RS1,
     ASM_IMM_IORW,
     ASM_COPY_RD_RS1,
+    ASM_CONST_0,
     ASM_CONST_1,
     ASM_CONST_MINUS_1,
     ASM_RD_X0,
@@ -280,7 +290,7 @@ bit_struct(instr_cs, {
 	unsigned_field(opcode,2);
 	unsigned_field(rs2,3);
 	unsigned_field(imm6_5,2);
-	unsigned_field(rs1,3);
+	unsigned_field(rd,3);
 	unsigned_field(imm12_10,3);
 	unsigned_field(funct3,3);
     });
@@ -303,7 +313,6 @@ bit_struct(instr_cj, {
 
 // vasm_asm.c
 
-extern void asm_init(symbol_table_t* symtab); 
 extern char* register_abi_name(int r);
 extern char* register_xi_name(int r);
 extern int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens);
@@ -318,4 +327,8 @@ extern unsigned_t emu(vasm_rt_t* ctx, unsigned_t addr, void* mem);
 extern void dump_regs(FILE* f, vasm_rt_t* ctx);
 extern void run(FILE* f, symbol_table_t* symtab, vasm_rt_t* ctx, 
 		unsigned_t addr);
+
+// vasm.c
+extern int vasm_init(vasm_ctx_t* ctx);
+
 #endif

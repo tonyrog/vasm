@@ -65,6 +65,23 @@ enum {
     INSTR_dec_SI,
 };
 
+// fixme: for instructions we should use
+// code=OPCODE_BRANCH|FUNCT_BNE,
+// mask for seach format is:
+#define FORMAT_R_MASK  0xFE00707f
+#define FORMAT_I_MASK  0x0000707f
+#define FORMAT_S_MASK  0x0000707f
+#define FORMAT_SB_MASK 0x0000707f
+#define FORMAT_U_MASK  0x0000007f
+#define FORMAT_UJ_MASK 0x0000007f
+
+#define FORMAT_R_CODE(op,f3,f7) ((op)|((f3)<<12)|((f7)<<25))
+#define FORMAT_I_CODE(op,f3)    ((op)|((f3)<<12))
+#define FORMAT_S_CODE(op,f3)    ((op)|((f3)<<12))
+#define FORMAT_SB_CODE(op,f3)   ((op)|((f3)<<12))
+#define FORMAT_U_CODE(op)       ((op))
+#define FORMAT_UJ_CODE(op)      ((op))
+
 // r-format
 #define OPCODE_ARITH 0x33
 #define FUNCT_ADD  0   // funct7 = 0000000
@@ -107,6 +124,7 @@ enum {
 #define FENCE_W_BIT 0x1
 
 #define OPCODE_JALR  0x67
+
 #define OPCODE_SYS    0x73
 #define FUNCT_SYS     0    // imm11_0 = 000000000000
 #define FUNCT_SBREAK  0    // imm11_0 = 000000000001

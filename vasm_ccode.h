@@ -8,6 +8,7 @@
 extern void gen_ccode_operand(FILE* f, int mode, int reg);
 extern unsigned_t gen_ccode_instr(FILE* f, symbol_table_t* symtab, 
 				  unsigned_t addr, void* mem);
+extern void gen_emu(FILE* f, symbol_table_t* symtab);
 extern void gen_ccode(FILE* f, symbol_table_t* symtab, void* mem, size_t n);
 
 #endif
