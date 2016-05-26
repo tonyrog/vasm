@@ -62,7 +62,7 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 decode:
     if ((sym = symbol_lookup(symtab, ins)) == NULL) {
 	printf("%08x: %08x ???\n", addr, ins);
-	return addr+4;
+	return addr1;
     }
 
     fprintf(f, "%08x: ", addr);

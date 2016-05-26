@@ -52,15 +52,15 @@ signed_t lookup_jump_target(symbol_table_t* symtab, char* label, unsigned addr)
 	sym = symbol_table_add(symtab, label, 0);
 	sym->flags |= SYMBOL_FLAG_FORWARD;
 	symbol_link_add(sym, addr);
-	// fprintf(stderr, "forward label %s @ %d\n", label, addr);
+	fprintf(stderr, "forward label %s @ %d\n", label, addr);
     }
     else {
 	if (sym->flags & SYMBOL_FLAG_FORWARD) {
-	    // fprintf(stderr, "forward label link %s @ %d\n", label, addr);
+	    fprintf(stderr, "forward label link %s @ %d\n", label, addr);
 	    symbol_link_add(sym, addr);
 	}
 	else if (sym->flags & SYMBOL_FLAG_LABEL) {
-	    // fprintf(stderr, "label %s offset %d\n", label, sym->value - addr);
+	    fprintf(stderr, "label %s offset %d\n", label, sym->value - addr);
 	    return sym->value - addr;
 	}
     }
@@ -219,10 +219,19 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 		symbol_link_t* nlink = link->next;
 		uint32_t* instr = (uint32_t*) &ctx->rt.mem[link->addr];
 
-		DEBUGF(ctx, "resolve label %s @ %x = %d\n", 
+		DEBUGF(ctx, "resolve label %s @ %x = %d\n",
 		       tokens[0].name,link->addr, sym->value - link->addr);
 
-		*instr = set_imm_sb(*instr, sym->value - link->addr);
+		switch(*instr & 0x7f) {
+		case OPCODE_BRANCH:
+		    *instr = set_imm_sb(*instr, sym->value - link->addr);
+		    break;
+		case OPCODE_JAL:
+		    *instr = set_imm_uj(*instr, sym->value - link->addr);
+		    break;
+		    // fixme: OPCODE_LUI ?
+		    // OPCODE_AUIPC?
+		}
 		symbol_link_free(link);
 		link = nlink;
 	    }

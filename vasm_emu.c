@@ -1,17 +1,6 @@
 
 #include "vasm.h"
-#include "vasm_rt.h"
-
-static inline reg_t rdr(vasm_rt_t* ctx, int r)
-{
-    return (r == 0) ? 0 : ctx->reg[r];
-}
-
-static inline void wrr(vasm_rt_t* ctx, int r, reg_t val)
-{
-    if (r != 0)
-	ctx->reg[r] = val;
-}
+#include "vasm_emu.h"
 
 // inflate compressed instruction if needed
 // if data is to be inflated put data in imem
@@ -125,132 +114,42 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
     case OPCODE_ARITH: {  // R-type
 	switch(bitfield_fetch(instr_r,funct7,ins)) {
 	case 0x00:
-	    rd = bitfield_fetch(instr_r,rd,ins);
-	    rs1 = bitfield_fetch(instr_r,rs1,ins);
-	    rs2 = bitfield_fetch(instr_r,rs2,ins);
 	    switch(bitfield_fetch(instr_r,funct3,ins)) {
-	    case FUNCT_ADD:
-		wrr(ctx,rd,rdr(ctx,rs1) + rdr(ctx,rs2));
-		break;
-	    case FUNCT_SLL:
-		wrr(ctx,rd,rdr(ctx,rs1) << rdr(ctx,rs2));
-		break;
-	    case FUNCT_SLT:
-		wrr(ctx,rd, (rdr(ctx,rs1) < rdr(ctx,rs2)));
-		break;
-	    case FUNCT_SLTU:
-		wrr(ctx,rd, ((ureg_t)rdr(ctx,rs1) < (ureg_t)rdr(ctx,rs2)));
-		break;
-	    case FUNCT_XOR:
-		wrr(ctx,rd,rdr(ctx,rs1) ^ rdr(ctx,rs2));
-		break;
-	    case FUNCT_SRL:
-		wrr(ctx,rd,(ureg_t)rdr(ctx,rs1) >> rdr(ctx,rs2));
-		break;
-	    case FUNCT_OR:
-		wrr(ctx,rd,rdr(ctx,rs1) | rdr(ctx,rs2));
-		break;
-	    case FUNCT_AND:
-		wrr(ctx,rd,rdr(ctx,rs1) & rdr(ctx,rs2));
-		break;
+	    case FUNCT_ADD: RV32I_ADD(ctx, ins); break;
+	    case FUNCT_SLL: RV32I_SLL(ctx, ins); break;
+	    case FUNCT_SLT: RV32I_SLT(ctx, ins); break;
+	    case FUNCT_SLTU: RV32I_SLTU(ctx, ins); break;
+	    case FUNCT_XOR: RV32I_XOR(ctx, ins); break;
+	    case FUNCT_SRL: RV32I_SRL(ctx, ins); break;
+	    case FUNCT_OR: RV32I_OR(ctx, ins); break;
+	    case FUNCT_AND: RV32I_AND(ctx, ins); break;
+	    default: goto illegal;
 	    }
 	    break;
 	case 0x01:
-	    rd = bitfield_fetch(instr_r,rd,ins);
-	    rs1 = bitfield_fetch(instr_r,rs1,ins);
-	    rs2 = bitfield_fetch(instr_r,rs2,ins);
 #if defined(RV32M)
 	    switch(bitfield_fetch(instr_r,funct3,ins)) {
-	    case FUNCT_MUL:
-		wrr(ctx,rd,rdr(ctx,rs1) * rdr(ctx,rs2));
-		break;
-	    case FUNCT_MULH: {
-		dreg_t r = rdr(ctx,rs1);
-		r *= rdr(ctx,rs2);
-		wrr(ctx,rd, r>>XLEN);
-		break;
-	    }
-	    case FUNCT_MULHSU: {
-		dreg_t r = rdr(ctx,rs1);
-		r *= (ureg_t)rdr(ctx,rs2);
-		wrr(ctx,rd, r>>XLEN);
-		break;
-	    }
-	    case FUNCT_MULHU: {
-		udreg_t r = (ureg_t)rdr(ctx,rs1);
-		r *= (ureg_t)rdr(ctx,rs2);
-		wrr(ctx,rd, r>>XLEN);
-		break;
-	    }
-	    case FUNCT_DIV: {
-		reg_t divisor = rdr(ctx,rs2);
-		if (divisor == 0)
-		    wrr(ctx,rd,-1);
-		else {
-		    reg_t dividend = rdr(ctx,rs1);
-		    if (dividend == XMIN_SIGNED)
-			wrr(ctx,rd,dividend);
-		    else
-			wrr(ctx,rd,dividend / divisor);
-		}
-		break;
-	    }
-	    case FUNCT_DIVU: {
-		ureg_t divisor = (ureg_t)rdr(ctx,rs2);
-		if (divisor == 0)
-		    wrr(ctx,rd,-1);
-		else {
-		    ureg_t dividend = (ureg_t) rdr(ctx,rs1);
-		    wrr(ctx,rd,dividend / divisor);
-		}
-		break;
-	    }
-	    case FUNCT_REM: {
-		reg_t divisor = rdr(ctx,rs2);
-		reg_t dividend = rdr(ctx,rs1);
-		if (divisor == 0)
-		    wrr(ctx,rd,dividend);
-		else {
-		    if (dividend == XMIN_SIGNED)
-			wrr(ctx,rd,0);
-		    else
-			wrr(ctx,rd,dividend % divisor);
-		}
-		break;
-	    }
-	    case FUNCT_REMU: {
-		ureg_t divisor = rdr(ctx,rs2);
-		if (divisor == 0)
-		    wrr(ctx,rd,0);
-		else {
-		    ureg_t dividend = rdr(ctx,rs1);
-		    wrr(ctx,rd,dividend % divisor);
-		}
-		break;
-	    }
-	    default:
-		break;
+	    case FUNCT_MUL: RV32M_MUL(ctx,ins); break;
+	    case FUNCT_MULH: RV32M_MULH(ctx,ins); break;
+	    case FUNCT_MULHSU: RV32M_MULHSU(ctx,ins); break;
+	    case FUNCT_MULHU: RV32M_MULHU(ctx,ins); break;
+	    case FUNCT_DIV: RV32M_DIV(ctx,ins); break;
+	    case FUNCT_DIVU: RV32M_DIVU(ctx,ins); break;
+	    case FUNCT_REM: RV32M_REM(ctx,ins); break;
+	    case FUNCT_REMU: RV32M_REMU(ctx,ins); break;
+	    default: goto illegal;
 	    }
 #endif
 	    break;
 	case 0x20:
-	    rd = bitfield_fetch(instr_r,rd,ins);
-	    rs1 = bitfield_fetch(instr_r,rs1,ins);
-	    rs2 = bitfield_fetch(instr_r,rs2,ins);
 	    switch(bitfield_fetch(instr_r,funct3,ins)) {
-	    case FUNCT_SUB:
-		wrr(ctx,rd,rdr(ctx,rs1) - rdr(ctx,rs2));
-		break;
-	    case FUNCT_SRA:
-		wrr(ctx,rd,rdr(ctx,rs1) >> rdr(ctx,rs2));
-		break;
-	    default:
-		break;
+	    case FUNCT_SUB: RV32I_SUB(ctx,ins); break;
+	    case FUNCT_SRA: RV32I_SRA(ctx,ins); break;
+	    default: goto illegal;
 	    }
 	    break;
-	default:
-	    break;
-	}			    
+	default: goto illegal;
+        }			    
 	break;
     }
     case OPCODE_IMM: {   // I-type
@@ -258,34 +157,22 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	rs1 = bitfield_fetch(instr_i,rs1,ins);
 	imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
 	switch(bitfield_fetch(instr_i,funct3,ins)) {
-	case FUNCT_ADDI:
-	    wrr(ctx,rd,rdr(ctx,rs1) + imm);
-	    break;
-	case FUNCT_SLLI:
-	    wrr(ctx,rd,rdr(ctx,rs1) << imm);
-	    break;
-	case FUNCT_SLTI:
-	    wrr(ctx,rd,(rdr(ctx,rs1) < imm));
-	    break;
-	case FUNCT_SLTIU:
-	    wrr(ctx,rd,((ureg_t)rdr(ctx,rs1) < (ureg_t)imm));
-	    break;
-	case FUNCT_XORI:
-	    wrr(ctx,rd,rdr(ctx,rs1) ^ imm);
-	    break;
+	case FUNCT_ADDI: rv32i_addi(ctx,rd,rs1,imm); break;
+	case FUNCT_SLLI: rv32i_slli(ctx,rd,rs1,imm); break;
+	case FUNCT_SLTI: rv32i_slti(ctx,rd,rs1,imm); break;
+	case FUNCT_SLTIU: rv32i_sltiu(ctx,rd,rs1,imm); break;
+	case FUNCT_XORI: rv32i_xori(ctx,rd,rs1,imm); break;
 	case FUNCT_SRLI:  // imm11_0 = 0000000
      // case FUNCT_SRAI:   // imm11_0 = 0100000
-	    if (imm == 0x00)
-		wrr(ctx,rd, (ureg_t)rdr(ctx,rs1) >> imm);
-	    else if (imm == 0x20)
-		wrr(ctx,rd,rdr(ctx,rs1) >> imm);
+	    switch((imm >> 5) & 0x7f) {
+	    case 0x00: rv32i_srli(ctx,rd,rs1,imm&0x1f); break;
+	    case 0x20: rv32i_srai(ctx,rd,rs1,imm&0x1f); break;
+	    default: goto illegal;
+	    }
 	    break;
-	case FUNCT_ORI:
-	    wrr(ctx,rd,rdr(ctx,rs1) | imm);
-	    break;
-	case FUNCT_ANDI:
-	    wrr(ctx,rd,rdr(ctx,rs1) & imm);
-	    break;
+	case FUNCT_ORI: rv32i_ori(ctx,rd,rs1,imm); break;
+	case FUNCT_ANDI: rv32i_andi(ctx,rd,rs1,imm); break;
+	default: goto illegal;
 	}
 	break;	
     }
@@ -297,23 +184,12 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
 	addr = (void*) ((uint8_t*)mem + rdr(ctx,rs1)+imm);
 	switch(bitfield_fetch(instr_i,funct3,ins)) {
-	case FUNCT_LB:
-	    wrr(ctx,rd,*((int8_t*)addr));
-	    break;
-	case FUNCT_LH:
-	    wrr(ctx,rd,*((int16_t*)addr));
-	    break;
-	case FUNCT_LW:
-	    wrr(ctx,rd,*((int32_t*)addr));
-	    break;
-	case FUNCT_LBU:
-	    wrr(ctx,rd,*((uint8_t*)addr));
-	    break;
-	case FUNCT_LHU:
-	    wrr(ctx,rd,*((uint16_t*)addr));
-	    break;
-	default:
-	    break;
+	case FUNCT_LB: rv32i_lb(ctx,rd,addr); break;
+	case FUNCT_LH: rv32i_lh(ctx,rd,addr); break;
+	case FUNCT_LW: rv32i_lw(ctx,rd,addr); break;
+	case FUNCT_LBU: rv32i_lbu(ctx,rd,addr); break;
+	case FUNCT_LHU: rv32i_lhu(ctx,rd,addr); break;
+	default: goto illegal;
 	}
 	break;
     }
@@ -330,17 +206,10 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	rs2 = bitfield_fetch(instr_s,rs2,ins);
 	addr = (void*) ((uint8_t*)mem+rdr(ctx,rs1)+get_imm_s(ins));
 	switch(bitfield_fetch(instr_s,funct3,ins)) {
-	case FUNCT_SB:
-	    *((uint8_t*)addr) = rdr(ctx,rs2);
-	    break;
-	case FUNCT_SH:
-	    *((uint16_t*)addr) = rdr(ctx,rs2);
-	    break;
-	case FUNCT_SW:
-	    *((uint32_t*)addr) = rdr(ctx,rs2);
-	    break;
-	default:
-	    break;
+	case FUNCT_SB: rv32i_sb(ctx,rs2,addr); break;
+	case FUNCT_SH: rv32i_sh(ctx,rs2,addr); break;
+	case FUNCT_SW: rv32i_sw(ctx,rs2,addr); break;
+	default: goto illegal;
 	}
 	break;
     }
@@ -348,44 +217,47 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
     case OPCODE_BRANCH: { // SB-type
 	rs1 = bitfield_fetch(instr_sb,rs1,ins);
 	rs2 = bitfield_fetch(instr_sb,rs2,ins);
+	imm = get_imm_sb(ins);
 	switch(bitfield_fetch(instr_sb,funct3,ins)) {
 	case FUNCT_BEQ:
-	    if (rdr(ctx,rs1) == rdr(ctx,rs2))
-		return pc + get_imm_sb(ins);
+	    if (rv32i_beq(ctx,rs1,rs2))
+		return pc+imm;
 	    break;
-	case FUNCT_BNE:
-	    if (rdr(ctx,rs1) != rdr(ctx,rs2))
-		return pc + get_imm_sb(ins);
+	case FUNCT_BNE: 
+	    if (rv32i_bne(ctx,rs1,rs2))
+		return pc+imm;
 	    break;
-	case FUNCT_BLT:
-	    if (rdr(ctx,rs1) < rdr(ctx,rs2))
-		return pc + get_imm_sb(ins);
+	case FUNCT_BLT: 
+	    if (rv32i_blt(ctx,rs1,rs2))
+		return pc+imm;
 	    break;
-	case FUNCT_BGE:
-	    if (rdr(ctx,rs1) >= rdr(ctx,rs2))
-		return pc + get_imm_sb(ins);
+	case FUNCT_BGE: 
+	    if (rv32i_bge(ctx,rs1,rs2))
+		return pc+imm;
 	    break;
 	case FUNCT_BLTU:
-	    if ((ureg_t)rdr(ctx,rs1) < (ureg_t)rdr(ctx,rs2))
-		return pc + get_imm_sb(ins);
+	    if (rv32i_bltu(ctx,rs1,rs2))
+		return pc+imm;
 	    break;
 	case FUNCT_BGEU:
-	    if ((ureg_t)rdr(ctx,rs1) >= (ureg_t)rdr(ctx,rs2))
-		return pc + get_imm_sb(ins);
+	    if (rv32i_bgeu(ctx,rs1,rs2))
+		return pc+imm;
 	    break;
+	default: 
+	    goto illegal;
 	}
 	break;
     }
     case OPCODE_LUI:  { // U-type
 	rd = bitfield_fetch(instr_u,rd,ins);
 	imm = bitfield_fetch(instr_u,imm31_12,ins);
-	wrr(ctx,rd,(imm << 12));
+	rv32i_lui(ctx,rd,imm);
 	break;
     }
     case OPCODE_AUIPC: { // U-type
 	rd = bitfield_fetch(instr_u,rd,ins);
 	imm = bitfield_fetch(instr_u,imm31_12,ins);
-	wrr(ctx,rd, ctx->pc + (imm << 12));
+	rv32i_auipc(ctx,rd,imm);
 	break;
     }
 
@@ -393,20 +265,20 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	rs1 = bitfield_fetch(instr_i,rs1,ins);
 	rd = bitfield_fetch(instr_i,rd,ins);
 	imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
-	reg_t pc1;
-	wrr(ctx,rd,ctx->pc + 4);
-	pc1 = (imm + rdr(ctx,rs1)) & ~1;
-	return pc1;
+	return rv32i_jalr(ctx, rd, rs1, imm);
     }
 	
     case OPCODE_JAL: {   // Uj-type
 	rd = bitfield_fetch(instr_uj,rd,ins);	
-	wrr(ctx,rd,ctx->pc + 4);
-	return pc + get_imm_uj(ins);
+	imm = get_imm_uj(ins);
+	return pc+rv32i_jal(ctx,rd,imm);
     }
-
+    default: goto illegal;
     }
     return pc+4;
+illegal:
+    fprintf(stderr, "%08x: illegal instruction %08x \r\n", pc, ins);
+    return (unsigned_t) -1;
 }
 
 void dump_regs(FILE* f, vasm_rt_t* ctx)
