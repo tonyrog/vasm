@@ -1,6 +1,6 @@
 #include <ctype.h>
-#include "vasm.h"
 
+#include "vasm.h"
 #include "vasm_rv32i.h"
 
 #define SYMREG_XI(i, nm) \
@@ -57,43 +57,45 @@ symbol_t sym_reg_abi[] =
 {
     SYMREG_ABI(0, "zero"),
     SYMREG_ABI(1, "ra"),
-    SYMREG_ABI(2, "fp"),
-    SYMREG_ABI(3, "s1"),
-    SYMREG_ABI(4, "s2"),
-    SYMREG_ABI(5, "s3"),
-    SYMREG_ABI(6, "s4"),
-    SYMREG_ABI(7, "s5"),
-    SYMREG_ABI(8, "s6"),
-    SYMREG_ABI(9, "s7"),
-    SYMREG_ABI(10, "s8"),
-    SYMREG_ABI(11, "s9"),
-    SYMREG_ABI(12, "s10"),
-    SYMREG_ABI(13, "s11"),
-    SYMREG_ABI(14, "sp"),
-    SYMREG_ABI(15, "tp"),
-    SYMREG_ABI(16, "v0"),
-    SYMREG_ABI(17, "v1"),
-    SYMREG_ABI(18, "a0"),
-    SYMREG_ABI(19, "a1"),
-    SYMREG_ABI(20, "a2"),
-    SYMREG_ABI(21, "a3"),
-    SYMREG_ABI(22, "a4"),
-    SYMREG_ABI(23, "a5"),
-    SYMREG_ABI(24, "a6"),
-    SYMREG_ABI(25, "a7"),
-    SYMREG_ABI(26, "t0"),
-    SYMREG_ABI(27, "t1"),
-    SYMREG_ABI(28, "t2"),
-    SYMREG_ABI(29, "t3"),
-    SYMREG_ABI(30, "t4"),
-    SYMREG_ABI(31, "gp"),
-    SYMREG_ABI_IX(32, 2, "s0"),
+    SYMREG_ABI(2, "sp"),
+    SYMREG_ABI(3, "gp"),
+    SYMREG_ABI(4, "tp"),
+    SYMREG_ABI(5, "t0"),
+    SYMREG_ABI(6, "t1"),
+    SYMREG_ABI(7, "t2"),
+    SYMREG_ABI(8, "fp"),
+    SYMREG_ABI(9, "s1"),
+    SYMREG_ABI(10, "a0"),
+    SYMREG_ABI(11, "a1"),
+    SYMREG_ABI(12, "a2"),
+    SYMREG_ABI(13, "a3"),
+    SYMREG_ABI(14, "a4"),
+    SYMREG_ABI(15, "a5"),
+    SYMREG_ABI(16, "a6"),
+    SYMREG_ABI(17, "a7"),
+    SYMREG_ABI(18, "s2"),
+    SYMREG_ABI(19, "s3"),
+    SYMREG_ABI(20, "s4"),
+    SYMREG_ABI(21, "s5"),
+    SYMREG_ABI(22, "s6"),
+    SYMREG_ABI(23, "s7"),
+    SYMREG_ABI(24, "s8"),
+    SYMREG_ABI(25, "s9"),
+    SYMREG_ABI(26, "s10"),
+    SYMREG_ABI(27, "s11"),
+    SYMREG_ABI(28, "t3"),
+    SYMREG_ABI(29, "t4"),
+    SYMREG_ABI(30, "t5"),
+    SYMREG_ABI(31, "t6"),
+    SYMREG_ABI_IX(32, 8, "s0"),
 };
 
 char* register_abi_name(int r)
 {
     return sym_reg_abi[r].name;
 }
+
+#define SYM_INSTR_EXT "32i"
 
 symbol_t sym_instr_rv32i[] =
 {
@@ -254,10 +256,11 @@ symbol_t sym_instr_rv32i[] =
 		FORMAT_I, FORMAT_I_MASK,
 		ASM_SEQ2(ASM_REG_RS2, ASM_IMM_12_RS1)),
 
-    SYM_INSTR_X(scall, FORMAT_I_CODE(OPCODE_SYS, 0)|(0x00000000),
+    SYM_INSTR_X(ecall, FORMAT_I_CODE(OPCODE_SYS, 0)|(0x00000000),
 		FORMAT_I, FORMAT_I_MASK|(0xffff8f80),
 		ASM_SEQ0()),
-    SYM_INSTR_X(sbreak, FORMAT_I_CODE(OPCODE_SYS, 0)|(0x00100000),
+
+    SYM_INSTR_X(ebreak, FORMAT_I_CODE(OPCODE_SYS, 0)|(0x00100000),
 		FORMAT_I, FORMAT_I_MASK|(0xffff8f80),
 		ASM_SEQ0()),
 
@@ -336,14 +339,15 @@ symbol_t sym_instr_rv32i[] =
 
 };
 
-int vasm_rv32i_asm_init(symbol_table_t* symtab)
+int vasm_rv32i_table_load(vasm_ctx_t* ctx)
 {
+    DEBUGF(ctx, "rv32i table load\n");
     // link in static symbols above into symtab
-    symbol_table_install_array(symtab, &sym_reg_abi[0], 
+    symbol_table_install_array(&ctx->symtab, &sym_reg_abi[0], 
 			       sizeof_array(sym_reg_abi));
-    symbol_table_install_array(symtab, &sym_reg_xi[0],
+    symbol_table_install_array(&ctx->symtab, &sym_reg_xi[0],
 			       sizeof_array(sym_reg_xi));
-    symbol_table_install_array(symtab, &sym_instr_rv32i[0],
+    symbol_table_install_array(&ctx->symtab, &sym_instr_rv32i[0],
 			       sizeof_array(sym_instr_rv32i));
     return 0;
 }

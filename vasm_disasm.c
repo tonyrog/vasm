@@ -69,7 +69,6 @@ decode:
     fprintf(f, "%08x m=%08x c=%08x ", ins, sym->mask, sym->code);
     fprintf(f, "%s ", sym->name);
 
-
     // extract arguments
     switch(sym->format) {
     case FORMAT_R:
@@ -110,16 +109,35 @@ decode:
 	    (bitfield_fetch(instr_ci, imm12, ins) << 5);
 	break;
     case FORMAT_CSS:
+	rs2 = bitfield_fetch(instr_css, rs2, ins);  // 5-bit
+	imm = bitfield_fetch(instr_css, imm12_7, ins);
+	break;
     case FORMAT_CIW:
-    case FORMAT_CL:
+	rd = bitfield_fetch(instr_ciw, rd, ins);  // 3-bit
+	imm = bitfield_fetch(instr_ciw, imm12_5, ins);
+	break;
+
+    case FORMAT_CL:  // compressed load
+	rd = bitfield_fetch(instr_cl, rd, ins);    // 3-bit
+	rs1 = bitfield_fetch(instr_cl, rs1, ins);  // 3-bit
+	// 3+2 bit immediate. must be permusted in most cases
+	imm = ((bitfield_fetch(instr_cl, imm12_10, ins) << 2) |
+	       bitfield_fetch(instr_cl, imm6_5, ins));
 	break;
     case FORMAT_CS:
 	rs2 = bitfield_fetch(instr_cs, rs2, ins);
 	rd = bitfield_fetch(instr_cs, rd, ins);
-	imm = bitfield_fetch(instr_cs, imm12_10, ins) << 2;
+	// 3+2 bit immediate. must be permusted in most cases
+	imm = ((bitfield_fetch(instr_cl, imm12_10, ins) << 2) |
+	       bitfield_fetch(instr_cl, imm6_5, ins));
 	break;
     case FORMAT_CB:
+	rs1 = bitfield_fetch(instr_cb, rs1, ins);
+	imm = ((bitfield_fetch(instr_cb, imm12_10, ins)<<5) |
+	       bitfield_fetch(instr_cb, imm6_2, ins));
+	break;
     case FORMAT_CJ:
+	imm = bitfield_fetch(instr_cj, imm12_2, ins);
 	break;
     default:
 	break;

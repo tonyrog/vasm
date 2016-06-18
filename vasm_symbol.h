@@ -37,6 +37,7 @@ typedef struct _symbol_t {
     uint32_t flags;
     struct _symbol_t* next;
     int        index;     // used for pre-installed symbols
+    char       ext[4];    // extenstion name
     uint32_t   code;      // bit code
     uint32_t   mask;      // bit mask
     uint8_t    format;    // Instruction/Data format
@@ -57,7 +58,6 @@ typedef struct {
     sym_node_t* root;
 } symbol_table_t;
 
-
 #define SYM_INSTR(nm) \
     [INSTR_##nm##_SI] = { .next = 0, .flags = SYMBOL_FLAG_INSTR, .index = INSTR_##nm##_SI, .name = #nm }
 
@@ -65,25 +65,23 @@ typedef struct {
     [INSTR_##nm##_SI] = { .next = 0,\
 			  .flags = SYMBOL_FLAG_INSTR,\
 			  .index = INSTR_##nm##_SI,\
+                          .ext = SYM_INSTR_EXT,\
 			  .format=(fo),\
 			  .code=(cod), \
 			  .mask=(ma),\
 			  .sequence=(seq),\
 			  .name = #nm }
 
-#define SYM_INSTR_NAME_X(nm,nam,cod,fo,ma,seq)				\
+#define SYM_INSTR_NAME_X(nm,nam,cod,fo,ma,seq)	\
     [INSTR_##nm##_SI] = { .next = 0,\
 			  .flags = SYMBOL_FLAG_INSTR,\
 			  .index = INSTR_##nm##_SI,\
+                          .ext = SYM_INSTR_EXT,\
 			  .format=(fo),\
 			  .code=(cod), \
 			  .mask=(ma),\
 			  .sequence=(seq),\
 			  .name = nam }
-
-// when string name is not = nm
-// #define SYM_INSTR_NAME(nm,nam)					\
-//    [INSTR_##nm##_SI] = { .next = 0, .flags = SYMBOL_FLAG_INSTR, .index = INSTR_##nm##_SI, .name = nam }
 
 extern int symbol_eq(symbol_t* sym, char* name);
 extern symbol_t* symbol_new(char* name,unsigned_t value);

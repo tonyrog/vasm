@@ -3,6 +3,8 @@
 
 #include "vasm_rv32m.h"
 
+#define SYM_INSTR_EXT "32m"
+
 symbol_t sym_instr_rv32m[] =
 {
     SYM_INSTR_X(mul,FORMAT_R_CODE(OPCODE_ARITH,FUNCT_MUL,FUNCT7_MULDIV),
@@ -38,9 +40,10 @@ symbol_t sym_instr_rv32m[] =
 		ASM_SEQ3(ASM_REG_RD, ASM_REG_RS1, ASM_REG_RS2)),
 };
 
-int vasm_rv32m_asm_init(symbol_table_t* symtab)
+int vasm_rv32m_table_load(vasm_ctx_t* ctx)
 {
-    symbol_table_install_array(symtab, &sym_instr_rv32m[0],
+    DEBUGF(ctx, "rv32m table load\n");
+    symbol_table_install_array(&ctx->symtab, &sym_instr_rv32m[0],
 			       sizeof_array(sym_instr_rv32m));
     return 0;
 }

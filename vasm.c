@@ -15,10 +15,10 @@
 #define MAX_TOKENS       1024
 #define LINE_BUFFER_SIZE 1024
 
-
-int vasm_init(vasm_ctx_t* ctx)
+void vasm_init(vasm_ctx_t* ctx)
 {
     memset(ctx->rt.reg, 0, sizeof(ctx->rt.reg));
+
     ctx->rt.mem_size = MEMORY_SIZE;
     ctx->rt.waddr = 0;
     ctx->rt.pc = 0;
@@ -28,13 +28,19 @@ int vasm_init(vasm_ctx_t* ctx)
     ctx->verbose = 0;
 
     symbol_table_init(&ctx->symtab);
+}
 
-    vasm_rv32i_asm_init(&ctx->symtab);
+int vasm_table_load(vasm_ctx_t* ctx)
+{
+    vasm_rv32i_table_load(ctx);
 #if defined(RV32M)
-    vasm_rv32m_asm_init(&ctx->symtab);
+    vasm_rv32m_table_load(ctx);
 #endif
 #if defined(RV32C)
-    vasm_rv32c_asm_init(&ctx->symtab);
+    vasm_rv32c_table_load(ctx);
+#endif
+#if defined(RV32F)
+    vasm_rv32f_table_load(ctx);
 #endif
     
     symbol_table_sort(&ctx->symtab);
@@ -95,6 +101,8 @@ int main(int argc, char** argv)
 	}
     }
 
+    vasm_table_load(&ctx);
+
     if (out_type == NULL) {
 	if (out_file != NULL) {
 	    if (eq_suffix(out_file, ".c"))
@@ -111,7 +119,7 @@ int main(int argc, char** argv)
     }
 
     if (optind >= argc) {
-	if (strcmp(out_type, "emu") == 0) {
+	if ((out_type != NULL) && (strcmp(out_type, "emu") == 0)) {
 	    f = NULL;
 	    ctx.filename = "*null*";
 	}

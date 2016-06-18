@@ -3,15 +3,17 @@
 
 #include "vasm_rv32c.h"
 
+#define SYM_INSTR_EXT "32c"
+
 symbol_t sym_instr_rv32c[] =
 {
     // FORMAT_CR
-    SYM_INSTR_NAME_X(c_add, "c.add", 
+    SYM_INSTR_NAME_X(c_add, "c.add",
 		     FORMAT_CR_CODE(OPCODE_C2, FUNCT_C_ADD),
 		     FORMAT_CR, FORMAT_CR_MASK,
 		     ASM_SEQ2(ASM_REG_RD, ASM_REG_RS2)),
 
-    SYM_INSTR_NAME_X(c_ebreak, "c.ebreak", 
+    SYM_INSTR_NAME_X(c_ebreak, "c.ebreak",
 		     FORMAT_CR_CODE(OPCODE_C2,FUNCT_C_EBREAK),
 		     FORMAT_CR, FORMAT_CR_MASK,
 		     ASM_SEQ0()),
@@ -21,28 +23,28 @@ symbol_t sym_instr_rv32c[] =
 		     FORMAT_CR, FORMAT_CR_MASK,
 		     ASM_SEQ2(ASM_RD_X1, ASM_REG_RS2)),
 
-    SYM_INSTR_NAME_X(c_jr, "c.jr", 
+    SYM_INSTR_NAME_X(c_jr, "c.jr",
 		     FORMAT_CR_CODE(OPCODE_C2, FUNCT_C_JR),
 		     FORMAT_CR, FORMAT_CR_MASK,
 		     ASM_SEQ2(ASM_RD_X0, ASM_REG_RS2)),
 
-    SYM_INSTR_NAME_X(c_mv, "c.mv", 
+    SYM_INSTR_NAME_X(c_mv, "c.mv",
 		     FORMAT_CR_CODE(OPCODE_C2, FUNCT_C_MV),
 		     FORMAT_CR, FORMAT_CR_MASK,
 		     ASM_SEQ2(ASM_REG_RD, ASM_REG_RS2)),
 
-    SYM_INSTR_NAME_X(c_nop, "c.nop", 
+    SYM_INSTR_NAME_X(c_nop, "c.nop",
 		     FORMAT_CR_CODE(OPCODE_C1, FUNCT_C_NOP),
 		     FORMAT_CR, FORMAT_CR_MASK,
 		     ASM_SEQ0()),
 
     // FORMAT_CI
-    SYM_INSTR_NAME_X(c_addi, "c.addi", 
+    SYM_INSTR_NAME_X(c_addi, "c.addi",
 		     FORMAT_CI_CODE(OPCODE_C1, FUNCT_C_ADDI),
 		     FORMAT_CI, FORMAT_CI_MASK,
 		     ASM_SEQ2(ASM_REG_RD,  ASM_IMM_6)),
 
-    SYM_INSTR_NAME_X(c_addi16sp, "c.addi16sp", 
+    SYM_INSTR_NAME_X(c_addi16sp, "c.addi16sp",
 		     FORMAT_CI_CODE(OPCODE_C1, FUNCT_C_ADDI16SP),
 		     FORMAT_CI, FORMAT_CI_MASK,
 		     ASM_SEQ2(ASM_REG_RD,  ASM_IMM_6)),
@@ -220,10 +222,11 @@ symbol_t sym_instr_rv32c[] =
 
 };
 
-int vasm_rv32c_asm_init(symbol_table_t* symtab)
+int vasm_rv32c_table_load(vasm_ctx_t* ctx)
 {
-    // link in static symbols above into symtab
-    symbol_table_install_array(symtab, &sym_instr_rv32c[0],
+    DEBUGF(ctx, "rv32c table load\n");
+
+    symbol_table_install_array(&ctx->symtab, &sym_instr_rv32c[0],
 			       sizeof_array(sym_instr_rv32c));
     return 0;
 }

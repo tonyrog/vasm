@@ -26,9 +26,9 @@ typedef struct _vasm_ctx_t {
     int        verbose;
 } vasm_ctx_t;
 
-#define DEBUGF(ctx, fmt, ...) do {		\
+#define DEBUGF(ctx, ...) do {			\
 	if ((ctx)->debug) {			\
-	    fprintf(stderr, fmt, __VA_ARGS__);	\
+	    fprintf(stderr, __VA_ARGS__);	\
 	}					\
     } while(0)
 
@@ -131,7 +131,7 @@ bit_struct(instr_r,
 // lb, lbu, lh, lhu, lw
 // fence, fence.i
 // jalr
-// scall, sbreak, csrrw, csrrc, csrrs, csrrwi, csrrci, csrrso
+// ecall, ebreak, csrrw, csrrc, csrrs, csrrwi, csrrci, csrrso
 
 bit_struct(instr_i,
 	   {
@@ -311,6 +311,48 @@ bit_struct(instr_cj, {
 	unsigned_field(funct3,3);
     });
 
+#define FORMAT_R_MASK  0xFE00707f
+#define FORMAT_I_MASK  0x0000707f
+#define FORMAT_S_MASK  0x0000707f
+#define FORMAT_SB_MASK 0x0000707f
+#define FORMAT_U_MASK  0x0000007f
+#define FORMAT_UJ_MASK 0x0000007f
+
+#define FORMAT_R_CODE(op,f3,f7) ((op)|((f3)<<12)|((f7)<<25))
+#define FORMAT_I_CODE(op,f3)    ((op)|((f3)<<12))
+#define FORMAT_S_CODE(op,f3)    ((op)|((f3)<<12))
+#define FORMAT_SB_CODE(op,f3)   ((op)|((f3)<<12))
+#define FORMAT_U_CODE(op)       ((op))
+#define FORMAT_UJ_CODE(op)      ((op))
+
+#define RV32I_DECODE_R					\
+    int _rd = bitfield_fetch(instr_r,rd,(ins));		\
+    int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
+    int _rs2 = bitfield_fetch(instr_r,rs2,(ins))
+
+#define RV32I_DECODE_I					\
+    int _rd = bitfield_fetch(instr_i,rd,(ins));		\
+    int _rs1 = bitfield_fetch(instr_i,rs1,(ins));		\
+    int _imm = bitfield_fetch_signed(instr_i,imm11_0,(ins))
+
+#define RV32I_DECODE_S						\
+    int _rs1 = bitfield_fetch(instr_s,rs1,(ins));		\
+    int _rs2 = bitfield_fetch(instr_s,rs2,(ins));		\
+    int _imm = get_imm_s((ins))
+
+#define RV32I_DECODE_SB						\
+    int _rs1 = bitfield_fetch(instr_sb,rs1,(ins));		\
+    int _rs2 = bitfield_fetch(instr_sb,rs2,(ins));		\
+    int _imm = get_imm_sb((ins))
+
+#define RV32I_DECODE_U					\
+    int _rd = bitfield_fetch(instr_u,rd,(ins));		\
+    int _imm = bitfield_fetch(instr_u,imm31_12,ins)
+
+#define RV32I_DECODE_UJ						\
+    int _rd = bitfield_fetch(instr_uj,rd,(ins));		\
+    int _imm = get_imm_uj((ins))
+
 // vasm_asm.c
 
 extern char* register_abi_name(int r);
@@ -329,6 +371,6 @@ extern void run(FILE* f, symbol_table_t* symtab, vasm_rt_t* ctx,
 		unsigned_t addr);
 
 // vasm.c
-extern int vasm_init(vasm_ctx_t* ctx);
+extern void vasm_init(vasm_ctx_t* ctx);
 
 #endif

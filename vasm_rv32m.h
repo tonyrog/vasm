@@ -1,7 +1,7 @@
 #ifndef __VASM_RV32M_H__
 #define __VASM_RV32M_H__
 
-#include "vasm_symbol.h"
+#include "vasm.h"
 
 enum {
     INSTR_mul_SI,
@@ -26,7 +26,8 @@ enum {
 #define FUNCT_REM     6  // funct7 = 0000001
 #define FUNCT_REMU    7  // funct7 = 0000001
 
-extern int vasm_rv32m_asm_init(symbol_table_t* symtab);
+extern int vasm_rv32m_table_load(vasm_ctx_t* ctx);
+
 
 static inline void rv32m_mul(vasm_rt_t* ctx, int rd, int rs1, int rs2)
 {
@@ -34,9 +35,7 @@ static inline void rv32m_mul(vasm_rt_t* ctx, int rd, int rs1, int rs2)
 }
 
 #define RV32M_MUL(ctx,ins) do {				\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+	RV32I_DECODE_R;					\
 	rv32m_mul((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -48,9 +47,7 @@ static inline void rv32m_mulh(vasm_rt_t* ctx, int rd, int rs1, int rs2)
 }
 
 #define RV32M_MULH(ctx,ins) do {				\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+	RV32I_DECODE_R;						\
 	rv32m_mulh((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -62,9 +59,7 @@ static inline void rv32m_mulhsu(vasm_rt_t* ctx, int rd, int rs1, int rs2)
 }
 
 #define RV32M_MULHSU(ctx,ins) do {				\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+	RV32I_DECODE_R;						\
 	rv32m_mulhsu((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -76,9 +71,7 @@ static inline void rv32m_mulhu(vasm_rt_t* ctx, int rd, int rs1, int rs2)
 }
 
 #define RV32M_MULHU(ctx,ins) do {				\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+	RV32I_DECODE_R;						\
 	rv32m_mulhu((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -96,11 +89,9 @@ static inline void rv32m_div(vasm_rt_t* ctx, int rd, int rs1, int rs2)
     }
 }
 
-#define RV32M_DIV(ctx,ins) do {				\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
-	rv32m_div((ctx),_rd,_rs1,_rs2);			\
+#define RV32M_DIV(ctx,ins) do {					\
+	RV32I_DECODE_R;						\
+	rv32m_div((ctx),_rd,_rs1,_rs2);				\
     } while(0)
 
 static inline void rv32m_divu(vasm_rt_t* ctx, int rd, int rs1, int rs2)
@@ -115,9 +106,7 @@ static inline void rv32m_divu(vasm_rt_t* ctx, int rd, int rs1, int rs2)
 }
 
 #define RV32M_DIVU(ctx,ins) do {				\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));		\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));		\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));		\
+	RV32I_DECODE_R;						\
 	rv32m_divu((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -136,9 +125,7 @@ static inline void rv32m_rem(vasm_rt_t* ctx, int rd, int rs1, int rs2)
 }
 
 #define RV32M_REM(ctx,ins) do {					\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));		\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));		\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));		\
+	RV32I_DECODE_R;						\
 	rv32m_rem((ctx),_rd,_rs1,_rs2);				\
     } while(0)
 
@@ -154,9 +141,7 @@ static inline void rv32m_remu(vasm_rt_t* ctx, int rd, int rs1, int rs2)
 }
 
 #define RV32M_REMU(ctx,ins) do {				\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));		\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));		\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));		\
+	RV32I_DECODE_R;						\
 	rv32m_remu((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 

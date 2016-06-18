@@ -1,8 +1,8 @@
 #ifndef __VASM_RV32I_H__
 #define __VASM_RV32I_H__
 
-#include "vasm_symbol.h"
 #include "vasm_emu.h"
+#include "vasm.h"
 
 // Instruction symbol index
 enum {
@@ -45,8 +45,8 @@ enum {
     INSTR_bgeu_SI,
     INSTR_jal_SI,
     INSTR_jalr_SI,
-    INSTR_scall_SI,
-    INSTR_sbreak_SI,
+    INSTR_ecall_SI,
+    INSTR_ebreak_SI,
     INSTR_rdcycle_SI,
     INSTR_rdcycleh_SI,
     INSTR_rdtime_SI,
@@ -66,19 +66,6 @@ enum {
     INSTR_dec_SI,
 };
 
-#define FORMAT_R_MASK  0xFE00707f
-#define FORMAT_I_MASK  0x0000707f
-#define FORMAT_S_MASK  0x0000707f
-#define FORMAT_SB_MASK 0x0000707f
-#define FORMAT_U_MASK  0x0000007f
-#define FORMAT_UJ_MASK 0x0000007f
-
-#define FORMAT_R_CODE(op,f3,f7) ((op)|((f3)<<12)|((f7)<<25))
-#define FORMAT_I_CODE(op,f3)    ((op)|((f3)<<12))
-#define FORMAT_S_CODE(op,f3)    ((op)|((f3)<<12))
-#define FORMAT_SB_CODE(op,f3)   ((op)|((f3)<<12))
-#define FORMAT_U_CODE(op)       ((op))
-#define FORMAT_UJ_CODE(op)      ((op))
 
 // r-format
 #define OPCODE_ARITH 0x33
@@ -150,7 +137,7 @@ enum {
 // uj-format
 #define OPCODE_JAL 0x6F
 
-extern int vasm_rv32i_asm_init(symbol_table_t* symtab);
+extern int vasm_rv32i_table_load(vasm_ctx_t* ctx);
 
 // used by emulator and C-code generation
 
@@ -160,9 +147,7 @@ static inline void rv32i_add(vasm_rt_t* ctx, int rd, int rs1, int rs2)
 }
 
 #define RV32I_ADD(ctx,ins) do {				\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+	RV32I_DECODE_R;					\
 	rv32i_add((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -171,10 +156,8 @@ static inline void rv32i_sub(vasm_rt_t* ctx, int rd, int rs1, int rs2)
     wrr(ctx,rd,rdr(ctx,rs1) - rdr(ctx,rs2));
 }
 
-#define RV32I_SUB(ctx,ins) do {			\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+#define RV32I_SUB(ctx,ins) do {				\
+	RV32I_DECODE_R;					\
 	rv32i_sub((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -183,10 +166,8 @@ static inline void rv32i_sll(vasm_rt_t* ctx, int rd, int rs1, int rs2)
     wrr(ctx,rd,rdr(ctx,rs1) << rdr(ctx,rs2));
 }
 
-#define RV32I_SLL(ctx,ins) do {			\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+#define RV32I_SLL(ctx,ins) do {				\
+	RV32I_DECODE_R;					\
 	rv32i_sll((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -196,9 +177,7 @@ static inline void rv32i_sra(vasm_rt_t* ctx, int rd, int rs1, int rs2)
 }
 
 #define RV32I_SRA(ctx,ins) do {			\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+	RV32I_DECODE_R;					\
 	rv32i_sra((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -208,10 +187,8 @@ static inline void rv32i_slt(vasm_rt_t* ctx, int rd, int rs1, int rs2)
     wrr(ctx,rd, (rdr(ctx,rs1) < rdr(ctx,rs2)));
 }
 
-#define RV32I_SLT(ctx,ins) do {			\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+#define RV32I_SLT(ctx,ins) do {				\
+	RV32I_DECODE_R;					\
 	rv32i_slt((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -221,9 +198,7 @@ static inline void rv32i_sltu(vasm_rt_t* ctx, int rd, int rs1, int rs2)
 }
 
 #define RV32I_SLTU(ctx,ins) do {			\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+	RV32I_DECODE_R;					\
 	rv32i_sltu((ctx),_rd,_rs1,_rs2);		\
     } while(0)
 
@@ -232,10 +207,8 @@ static inline void rv32i_xor(vasm_rt_t* ctx, int rd, int rs1, int rs2)
     wrr(ctx,rd,rdr(ctx,rs1) ^ rdr(ctx,rs2));
 }
 
-#define RV32I_XOR(ctx,ins) do {			\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+#define RV32I_XOR(ctx,ins) do {				\
+	RV32I_DECODE_R;					\
 	rv32i_xor((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -244,10 +217,8 @@ static inline void rv32i_srl(vasm_rt_t* ctx, int rd, int rs1, int rs2)
     wrr(ctx,rd,(ureg_t)rdr(ctx,rs1) >> rdr(ctx,rs2));
 }
 
-#define RV32I_SRL(ctx,ins) do {			\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+#define RV32I_SRL(ctx,ins) do {				\
+	RV32I_DECODE_R;					\
 	rv32i_srl((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -256,10 +227,8 @@ static inline void rv32i_or(vasm_rt_t* ctx, int rd, int rs1, int rs2)
     wrr(ctx,rd,rdr(ctx,rs1) | rdr(ctx,rs2));
 }
 
-#define RV32I_OR(ctx,ins) do {			\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+#define RV32I_OR(ctx,ins) do {				\
+	RV32I_DECODE_R;					\
 	rv32i_or((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -269,9 +238,7 @@ static inline void rv32i_and(vasm_rt_t* ctx, int rd, int rs1, int rs2)
 }
 
 #define RV32I_AND(ctx,ins) do {				\
-	int _rd = bitfield_fetch(instr_r,rd,(ins));	\
-	int _rs1 = bitfield_fetch(instr_r,rs1,(ins));	\
-	int _rs2 = bitfield_fetch(instr_r,rs2,(ins));	\
+	RV32I_DECODE_R;					\
 	rv32i_and((ctx),_rd,_rs1,_rs2);			\
     } while(0)
 
@@ -280,85 +247,180 @@ static inline void rv32i_addi(vasm_rt_t* ctx, int rd, int rs1, int imm)
     wrr(ctx,rd,rdr(ctx,rs1) + imm);
 }
 
+#define RV32I_ADDI(ctx,ins) do {		\
+	RV32I_DECODE_I;				\
+	rv32i_addi((ctx),_rd,_rs1,_imm);	\
+    } while(0)
+
 static inline void rv32i_slti(vasm_rt_t* ctx, int rd, int rs1, int imm)
 {
     wrr(ctx,rd,(rdr(ctx,rs1) < imm));
 }
+
+#define RV32I_SLTI(ctx,ins) do {		\
+	RV32I_DECODE_I;				\
+	rv32i_slti((ctx),_rd,_rs1,_imm);	\
+    } while(0)
 
 static inline void rv32i_sltiu(vasm_rt_t* ctx, int rd, int rs1, int imm)
 {
     wrr(ctx,rd,((ureg_t)rdr(ctx,rs1) < (ureg_t)imm));
 }
 
+#define RV32I_SLTIU(ctx,ins) do {		\
+	RV32I_DECODE_I;				\
+	rv32i_sltiu((ctx),_rd,_rs1,_imm);	\
+    } while(0)
+
 static inline void rv32i_xori(vasm_rt_t* ctx, int rd, int rs1, int imm)
 {
     wrr(ctx,rd,rdr(ctx,rs1) ^ imm);
 }
+
+#define RV32I_XORI(ctx,ins) do {		\
+	RV32I_DECODE_I;				\
+	rv32i_xori((ctx),_rd,_rs1,_imm);	\
+    } while(0)
 
 static inline void rv32i_slli(vasm_rt_t* ctx, int rd, int rs1, int shamt)
 {
     wrr(ctx,rd,rdr(ctx,rs1) << shamt);
 }
 
+// fixme illegal if shamt[5] != 0
+#define RV32I_SLLI(ctx,ins) do {			\
+	RV32I_DECODE_I;					\
+	rv32i_slli((ctx),_rd,_rs1,_imm & 0x1f);		\
+    } while(0)
+
 static inline void rv32i_srli(vasm_rt_t* ctx, int rd, int rs1, int shamt)
 {
     wrr(ctx,rd, (ureg_t)rdr(ctx,rs1) >> shamt);
 }
+
+// fixme illegal if shamt[5] != 0
+#define RV32I_SRLI(ctx,ins) do {			\
+	RV32I_DECODE_I;					\
+	rv32i_srli((ctx),_rd,_rs1,_imm & 0x1f);		\
+    } while(0)
 
 static inline void rv32i_srai(vasm_rt_t* ctx, int rd, int rs1, int shamt)
 {
     wrr(ctx,rd,rdr(ctx,rs1) >> shamt);
 }
 
+#define RV32I_SRAI(ctx,ins) do {			\
+	RV32I_DECODE_I;					\
+	rv32i_srai((ctx),_rd,_rs1,_imm & 0x1f);		\
+    } while(0)
+
 static inline void rv32i_ori(vasm_rt_t* ctx, int rd, int rs1, int imm)
 {
     wrr(ctx,rd,rdr(ctx,rs1) | imm);
 }
+
+#define RV32I_ORI(ctx,ins) do {			\
+	RV32I_DECODE_I;				\
+	rv32i_ori((ctx),_rd,_rs1,_imm);		\
+    } while(0)
 
 static inline void rv32i_andi(vasm_rt_t* ctx, int rd, int rs1, int imm)
 {
     wrr(ctx,rd,rdr(ctx,rs1) & imm);
 }
 
+#define RV32I_ANDI(ctx,ins) do {		\
+	RV32I_DECODE_I;				\
+	rv32i_andi((ctx),_rd,_rs1,_imm);	\
+    } while(0)
+
 static inline void rv32i_lb(vasm_rt_t* ctx, int rd, void* addr)
 {
     wrr(ctx,rd,*((int8_t*)addr));
 }
+
+#define RV32I_LB(ctx,ins) do {						\
+	RV32I_DECODE_I;							\
+	void* _addr = (void*) ((ctx)->mem + (rdr((ctx),_rs1)+_imm));	\
+	rv32i_lb((ctx),_rd,_addr);					\
+    } while(0)
 
 static inline void rv32i_lh(vasm_rt_t* ctx, int rd, void* addr)
 {
     wrr(ctx,rd,*((int16_t*)addr));
 }
 
+#define RV32I_LH(ctx,ins) do {						\
+	RV32I_DECODE_I;							\
+	void* _addr = (void*) ((ctx)->mem + (rdr((ctx),_rs1)+_imm));	\
+	rv32i_lh((ctx),_rd,_addr);					\
+    } while(0)
+
 static inline void rv32i_lw(vasm_rt_t* ctx, int rd, void* addr)
 {
     wrr(ctx,rd,*((int32_t*)addr));
 }
+
+#define RV32I_LW(ctx,ins) do {						\
+	RV32I_DECODE_I;							\
+	void* _addr = (void*) ((ctx)->mem + (rdr((ctx),_rs1)+_imm));	\
+	rv32i_lw((ctx),_rd,_addr);					\
+    } while(0)
 
 static inline void rv32i_lbu(vasm_rt_t* ctx, int rd, void* addr)
 {
     wrr(ctx,rd,*((uint8_t*)addr));
 }
 
+#define RV32I_LBU(ctx,ins) do {						\
+	RV32I_DECODE_I;							\
+	void* _addr = (void*) ((ctx)->mem + (rdr((ctx),_rs1)+_imm));	\
+	rv32i_lbu((ctx),_rd,_addr);					\
+    } while(0)
+
 static inline void rv32i_lhu(vasm_rt_t* ctx, int rd, void* addr)
 {
     wrr(ctx,rd,*((uint16_t*)addr));
 }
+
+#define RV32I_LHU(ctx,ins) do {						\
+	RV32I_DECODE_I;							\
+	void* _addr = (void*) ((ctx)->mem + (rdr((ctx),_rs1)+_imm));	\
+	rv32i_lhu((ctx),_rd,_addr);					\
+    } while(0)
 
 static inline void rv32i_sb(vasm_rt_t* ctx, int rs2, void* addr)
 {
     *((uint8_t*)addr) = rdr(ctx,rs2);
 }
 
+#define RV32I_SB(ctx,ins) do {						\
+	RV32I_DECODE_S;							\
+	void* _addr = (void*) ((ctx)->mem + (rdr((ctx),_rs1)+_imm));	\
+	rv32i_sb((ctx),_rs2,_addr);					\
+    } while(0)
+
 static inline void rv32i_sh(vasm_rt_t* ctx, int rs2, void* addr)
 {
     *((uint16_t*)addr) = rdr(ctx,rs2);
 }
 
+#define RV32I_SH(ctx,ins) do {						\
+	RV32I_DECODE_S;							\
+	void* _addr = (void*) ((ctx)->mem + (rdr((ctx),_rs1)+_imm));	\
+	rv32i_sh((ctx),_rs2,_addr);					\
+    } while(0)
+
 static inline void rv32i_sw(vasm_rt_t* ctx, int rs2, void* addr)
 {
     *((uint32_t*)addr) = rdr(ctx,rs2);
 }
+
+#define RV32I_SW(ctx,ins) do {						\
+	RV32I_DECODE_S;							\
+	void* _addr = (void*) ((ctx)->mem + (rdr((ctx),_rs1)+_imm));	\
+	rv32i_sw((ctx),_rs2,_addr);					\
+    } while(0)
 
 static inline int rv32i_beq(vasm_rt_t* ctx, int rs1, int rs2)
 {
@@ -395,11 +457,21 @@ static inline void rv32i_lui(vasm_rt_t* ctx, int rd, int imm)
     wrr(ctx,rd,(imm << 12));
 }
 
+#define RV32I_LUI(ctx,ins) do {						\
+	RV32I_DECODE_U;							\
+	rv32i_lui((ctx),_rd,_imm);					\
+    } while(0)
+
 // fixme: only in emu not ccode
 static inline void rv32i_auipc(vasm_rt_t* ctx, int rd, int imm)
 {
     wrr(ctx,rd, ctx->pc + (imm << 12));
 }
+
+#define RV32I_AUIPC(ctx,ins) do {					\
+	RV32I_DECODE_U;							\
+	rv32i_auipc((ctx),_rd,_imm);					\
+    } while(0)
 
 // fixme: only in emu not ccode, generate table jump
 static inline int rv32i_jalr(vasm_rt_t* ctx, int rd, int rs1, int imm)
@@ -416,5 +488,21 @@ static inline int rv32i_jal(vasm_rt_t* ctx, int rd, int imm)
     wrr(ctx,rd,ctx->pc + 4);
     return imm;
 }
+
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <sys/syscall.h>
+
+static inline void rv32i_ecall(vasm_rt_t* ctx)
+{
+    ctx->reg[10] = syscall(ctx->reg[10], ctx->reg[11],
+			   ctx->reg[12], ctx->reg[13],
+			   ctx->reg[14], ctx->reg[15],
+			   ctx->reg[16], ctx->reg[17]);
+}
+
+#define RV32I_ECALL(ctx,ins) do {		\
+	rv32i_ecall((ctx));			\
+    } while(0)
 
 #endif

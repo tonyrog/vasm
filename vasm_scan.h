@@ -5,6 +5,8 @@
 
 #define TOKEN_SYMBOL        256
 #define TOKEN_NUMBER        257
+#define TOKEN_STRING        258
+#define TOKEN_COMMAND       259
 
 typedef struct _token_t {
     int c;             // token class

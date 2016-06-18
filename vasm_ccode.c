@@ -1,7 +1,56 @@
+#include <ctype.h>
 
 #include "vasm_ccode.h"
 
 #define TAB "    "
+
+char* upper_string(char* name, char* dst, size_t maxlen)
+{
+    char* ptr = dst;
+    while(maxlen-- && *name) {
+	int c = *name++;
+	*ptr++ = toupper(c);
+    }
+    if (maxlen)
+	*ptr = '\0';
+    else if (ptr > dst)
+	*(ptr-1) = '\0';
+    return dst;
+}
+
+char* c_name(char* name, char* dst, size_t maxlen)
+{
+    char* ptr = dst;
+    while(maxlen-- && *name) {
+	int c = *name++;
+	if (c == '.')
+	    *ptr++ = '_';
+	else
+	    *ptr++ = c;
+    }
+    if (maxlen)
+	*ptr = '\0';
+    else if (ptr > dst)
+	*(ptr-1) = '\0';
+    return dst;
+}
+
+char* uc_name(char* name, char* dst, size_t maxlen)
+{
+    char* ptr = dst;
+    while(maxlen-- && *name) {
+	int c = *name++;
+	if (c == '.')
+	    *ptr++ = '_';
+	else
+	    *ptr++ = toupper(c);
+    }
+    if (maxlen)
+	*ptr = '\0';
+    else if (ptr > dst)
+	*(ptr-1) = '\0';
+    return dst;
+}
 
 //
 // Generate assembler instructions as C code using
@@ -16,6 +65,7 @@ unsigned_t gen_ccode_instr(FILE* f,symbol_table_t* symtab,
     symbol_t* sym;
     symbol_t* dst;
     unsigned_t addr1;
+    char buf[64];
 
 #if BYTE_ORDER == LITTLE_ENDIAN
     uint32_t ins = ((uint16_t*)p)[0];
@@ -49,37 +99,42 @@ decode:
 	rd = bitfield_fetch(instr_r, rd, ins);
 	rs1 = bitfield_fetch(instr_r, rs1, ins);
 	rs2 = bitfield_fetch(instr_r, rs2, ins);
-	fprintf(f, "  rv32i_%s(ctx,%d,%d,%d);\n",sym->name,rd,rs1,rs2);
+	fprintf(f, "  rv%s_%s(ctx,%d,%d,%d);\n",
+		sym->ext,c_name(sym->name,buf,sizeof(buf)),
+		rd,rs1,rs2);
 	break;
     case FORMAT_I:
 	rd = bitfield_fetch(instr_i, rd, ins);
 	rs1 = bitfield_fetch(instr_i, rs1, ins);
 	imm = bitfield_fetch(instr_i, imm11_0, ins);
-	fprintf(f, "  rv32i_%s(ctx,%d,%d,%d);\n",sym->name,rd,rs1,imm);
+	fprintf(f, "  rv%s_%s(ctx,%d,%d,%d);\n",
+		sym->ext,c_name(sym->name,buf,sizeof(buf)),rd,rs1,imm);
 	break;
     case FORMAT_S:
 	rs1 = bitfield_fetch(instr_s, rs1, ins);
 	rs2 = bitfield_fetch(instr_s, rs2, ins);
 	imm = get_imm_s(ins);
-	fprintf(f, "  rv32i_%s(ctx,%d,%d,%d);\n",sym->name,rs1, rs2, imm);
+	fprintf(f, "  rv%s_%s(ctx,%d,%d,%d);\n",
+		sym->ext,c_name(sym->name,buf,sizeof(buf)),rs1, rs2, imm);
 	break;
     case FORMAT_SB:
 	imm = get_imm_sb(ins);
 	rs1 = bitfield_fetch(instr_sb, rs1, ins);
 	rs2 = bitfield_fetch(instr_sb, rs2, ins);
 	if ((dst = symbol_table_find_label(symtab, addr+imm)) != NULL)
-	    fprintf(f, "  if (rv32i_%s(ctx,%d,%d)) goto %s;\n",
-		    sym->name,rs1,rs2,dst->name);
+	    fprintf(f, "  if (rv%s_%s(ctx,%d,%d)) goto %s;\n",
+		    sym->ext,c_name(sym->name,buf,sizeof(buf)),rs1,rs2,dst->name);
 	else {
 	    // add addr+imm as label ???
-	    fprintf(f, "  if (rv32i_%s(ctx,%d,%d)) goto L%d;\n",
-		    sym->name,rs1,rs2,addr+imm);
+	    fprintf(f, "  if (rv%s_%s(ctx,%d,%d)) goto L%d;\n",
+		    sym->ext,c_name(sym->name,buf,sizeof(buf)),rs1,rs2,addr+imm);
 	}
 	break;
     case FORMAT_U:
 	rd = bitfield_fetch(instr_u, rd, ins);
 	imm = bitfield_fetch(instr_u, imm31_12, ins);
-	fprintf(f, "  rv32i_%s(ctx,%d,%d);\n",sym->name,rd,imm);
+	fprintf(f, "  rv%s_%s(ctx,%d,%d);\n",
+		sym->ext,c_name(sym->name,buf,sizeof(buf)),rd,imm);
 	break;
     case FORMAT_UJ:
 	rd = bitfield_fetch(instr_uj, rd, ins);
@@ -94,7 +149,8 @@ decode:
 		    fprintf(f, "  vasm_call(ctx,%d,%s);\n", rd,dst->name);
 	    }
 	    else {
-		fprintf(f, "  rv32i_%s(ctx,%d,%s);\n",sym->name,rd,dst->name);
+		fprintf(f, "  rv%s_%s(ctx,%d,%s);\n",
+			sym->ext,c_name(sym->name,buf,sizeof(buf)),rd,dst->name);
 	    }
 	}
 	else {
@@ -106,10 +162,9 @@ decode:
 		    fprintf(f, "  vasm_call(ctx,%d,L%d);\n", rd,addr+imm);
 	    }
 	    else {
-		fprintf(f, "  rv32i_%s(ctx,%d,L%d);\n",sym->name,rd,addr+imm);
+		fprintf(f, "  rv%s_%s(ctx,%d,L%d);\n",
+			sym->ext,c_name(sym->name,buf,sizeof(buf)),rd,addr+imm);
 	    }
-
-
 	}
 	break;
     default:
@@ -140,8 +195,12 @@ void gen_tree_emu(FILE* f, sym_node_t* np, int lev)
 		    gen_tree_emu(f, npi, lev+1);
 		else {
 		    symbol_t* sym = npi->sym;
-		    fprintf(f, "%sif ((ins & 0x%08x) == 0x%08x) { EMU_%s; }\n", 
-			    tab(lev+1), sym->mask, sym->code, sym->name);
+		    char buf[64];
+		    char buf2[64];
+		    fprintf(f, "%sif ((ins & 0x%08x) == 0x%08x) { RV%s_%s(ctx,ins); }\n",
+			    tab(lev+1), sym->mask, sym->code, 
+			    upper_string(sym->ext,buf2,sizeof(buf2)),
+			    uc_name(sym->name,buf,sizeof(buf)));
 		}
 	    }
 	    fprintf(f, "%sbreak;\n", tab(lev+1));
@@ -150,8 +209,12 @@ void gen_tree_emu(FILE* f, sym_node_t* np, int lev)
     }
     else {
 	symbol_t* sym = np->sym;
-	fprintf(f, "%sif ((ins & 0x%08x) == 0x%08x) { EMU_%s; }\n", 
-		tab(lev), sym->mask, sym->code, sym->name);
+	char buf[64];
+	char buf2[64];
+	fprintf(f, "%sif ((ins & 0x%08x) == 0x%08x) { RV%s_%s(ctx,ins); }\n", 
+		tab(lev), sym->mask, sym->code, 
+		upper_string(sym->ext,buf2,sizeof(buf2)),
+		uc_name(sym->name,buf,sizeof(buf)));
     }
 }
 

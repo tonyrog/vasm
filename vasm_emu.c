@@ -90,7 +90,6 @@ uint32_t v64c_inflate(void* p, uint32_t ins)
 unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 {
     void* p = (void*) ((uint8_t*)mem + pc);
-    int rs1, rs2, rd, imm;
 #if BYTE_ORDER == LITTLE_ENDIAN
     uint32_t ins = ((uint16_t*)p)[0];
 #else
@@ -153,42 +152,34 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	break;
     }
     case OPCODE_IMM: {   // I-type
-	rd = bitfield_fetch(instr_i,rd,ins);
-	rs1 = bitfield_fetch(instr_i,rs1,ins);
-	imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
 	switch(bitfield_fetch(instr_i,funct3,ins)) {
-	case FUNCT_ADDI: rv32i_addi(ctx,rd,rs1,imm); break;
-	case FUNCT_SLLI: rv32i_slli(ctx,rd,rs1,imm); break;
-	case FUNCT_SLTI: rv32i_slti(ctx,rd,rs1,imm); break;
-	case FUNCT_SLTIU: rv32i_sltiu(ctx,rd,rs1,imm); break;
-	case FUNCT_XORI: rv32i_xori(ctx,rd,rs1,imm); break;
+	case FUNCT_ADDI: RV32I_ADDI(ctx,ins); break;
+	case FUNCT_SLLI: RV32I_SLLI(ctx,ins); break;
+	case FUNCT_SLTI: RV32I_SLTI(ctx,ins); break;
+	case FUNCT_SLTIU: RV32I_SLTIU(ctx,ins); break;
+	case FUNCT_XORI: RV32I_XORI(ctx,ins); break;
 	case FUNCT_SRLI:  // imm11_0 = 0000000
      // case FUNCT_SRAI:   // imm11_0 = 0100000
-	    switch((imm >> 5) & 0x7f) {
-	    case 0x00: rv32i_srli(ctx,rd,rs1,imm&0x1f); break;
-	    case 0x20: rv32i_srai(ctx,rd,rs1,imm&0x1f); break;
+	    switch((bitfield_fetch(instr_i,imm11_0,ins) >> 5) & 0x7f) {
+	    case 0x00: RV32I_SRLI(ctx,ins); break;
+	    case 0x20: RV32I_SRAI(ctx,ins); break;
 	    default: goto illegal;
 	    }
 	    break;
-	case FUNCT_ORI: rv32i_ori(ctx,rd,rs1,imm); break;
-	case FUNCT_ANDI: rv32i_andi(ctx,rd,rs1,imm); break;
+	case FUNCT_ORI: RV32I_ORI(ctx,ins); break;
+	case FUNCT_ANDI: RV32I_ANDI(ctx,ins); break;
 	default: goto illegal;
 	}
 	break;	
     }
 
     case OPCODE_LOAD: { // I-type
-	void* addr;
-	rd = bitfield_fetch(instr_i,rd,ins);
-	rs1 = bitfield_fetch(instr_i,rs1,ins);
-	imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
-	addr = (void*) ((uint8_t*)mem + rdr(ctx,rs1)+imm);
 	switch(bitfield_fetch(instr_i,funct3,ins)) {
-	case FUNCT_LB: rv32i_lb(ctx,rd,addr); break;
-	case FUNCT_LH: rv32i_lh(ctx,rd,addr); break;
-	case FUNCT_LW: rv32i_lw(ctx,rd,addr); break;
-	case FUNCT_LBU: rv32i_lbu(ctx,rd,addr); break;
-	case FUNCT_LHU: rv32i_lhu(ctx,rd,addr); break;
+	case FUNCT_LB: RV32I_LB(ctx,ins); break;
+	case FUNCT_LH: RV32I_LH(ctx,ins); break;
+	case FUNCT_LW: RV32I_LW(ctx,ins); break;
+	case FUNCT_LBU: RV32I_LBU(ctx,ins); break;
+	case FUNCT_LHU: RV32I_LHU(ctx,ins); break;
 	default: goto illegal;
 	}
 	break;
@@ -197,51 +188,46 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
     case OPCODE_FENCE: // I-type
 	break;
 
-    case OPCODE_SYS:   // I-type
+    case OPCODE_SYS: {   // I-type
+	// int _rd = bitfield_fetch(instr_i,rd,(ins));
+	// int _rs1 = bitfield_fetch(instr_i,rs1,(ins));
+	int _imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
+	// RV32I_DECODE_I;
+	if (_imm == 0)
+	    rv32i_ecall(ctx);
 	break;
+    }
 
     case OPCODE_STORE: {  // S-type
-	void* addr;
-	rs1 = bitfield_fetch(instr_s,rs1,ins);
-	rs2 = bitfield_fetch(instr_s,rs2,ins);
-	addr = (void*) ((uint8_t*)mem+rdr(ctx,rs1)+get_imm_s(ins));
 	switch(bitfield_fetch(instr_s,funct3,ins)) {
-	case FUNCT_SB: rv32i_sb(ctx,rs2,addr); break;
-	case FUNCT_SH: rv32i_sh(ctx,rs2,addr); break;
-	case FUNCT_SW: rv32i_sw(ctx,rs2,addr); break;
+	case FUNCT_SB: RV32I_SB(ctx,ins); break;
+	case FUNCT_SH: RV32I_SH(ctx,ins); break;
+	case FUNCT_SW: RV32I_SW(ctx,ins); break;
 	default: goto illegal;
 	}
 	break;
     }
 
     case OPCODE_BRANCH: { // SB-type
-	rs1 = bitfield_fetch(instr_sb,rs1,ins);
-	rs2 = bitfield_fetch(instr_sb,rs2,ins);
-	imm = get_imm_sb(ins);
+	RV32I_DECODE_SB;
 	switch(bitfield_fetch(instr_sb,funct3,ins)) {
 	case FUNCT_BEQ:
-	    if (rv32i_beq(ctx,rs1,rs2))
-		return pc+imm;
+	    if (rv32i_beq(ctx,_rs1,_rs2)) return pc+_imm;
 	    break;
-	case FUNCT_BNE: 
-	    if (rv32i_bne(ctx,rs1,rs2))
-		return pc+imm;
+	case FUNCT_BNE:
+	    if (rv32i_bne(ctx,_rs1,_rs2)) return pc+_imm;
 	    break;
 	case FUNCT_BLT: 
-	    if (rv32i_blt(ctx,rs1,rs2))
-		return pc+imm;
+	    if (rv32i_blt(ctx,_rs1,_rs2)) return pc+_imm;
 	    break;
 	case FUNCT_BGE: 
-	    if (rv32i_bge(ctx,rs1,rs2))
-		return pc+imm;
+	    if (rv32i_bge(ctx,_rs1,_rs2)) return pc+_imm;
 	    break;
 	case FUNCT_BLTU:
-	    if (rv32i_bltu(ctx,rs1,rs2))
-		return pc+imm;
+	    if (rv32i_bltu(ctx,_rs1,_rs2)) return pc+_imm;
 	    break;
 	case FUNCT_BGEU:
-	    if (rv32i_bgeu(ctx,rs1,rs2))
-		return pc+imm;
+	    if (rv32i_bgeu(ctx,_rs1,_rs2)) return pc+_imm;
 	    break;
 	default: 
 	    goto illegal;
@@ -249,29 +235,22 @@ unsigned_t emu(vasm_rt_t* ctx,unsigned_t pc, void* mem)
 	break;
     }
     case OPCODE_LUI:  { // U-type
-	rd = bitfield_fetch(instr_u,rd,ins);
-	imm = bitfield_fetch(instr_u,imm31_12,ins);
-	rv32i_lui(ctx,rd,imm);
+	RV32I_LUI(ctx,ins);
 	break;
     }
     case OPCODE_AUIPC: { // U-type
-	rd = bitfield_fetch(instr_u,rd,ins);
-	imm = bitfield_fetch(instr_u,imm31_12,ins);
-	rv32i_auipc(ctx,rd,imm);
+	RV32I_AUIPC(ctx,ins);
 	break;
     }
 
     case OPCODE_JALR: {
-	rs1 = bitfield_fetch(instr_i,rs1,ins);
-	rd = bitfield_fetch(instr_i,rd,ins);
-	imm = bitfield_fetch_signed(instr_i,imm11_0,ins);
-	return rv32i_jalr(ctx, rd, rs1, imm);
+	RV32I_DECODE_I;	
+	return rv32i_jalr(ctx, _rd, _rs1, _imm);
     }
 	
     case OPCODE_JAL: {   // Uj-type
-	rd = bitfield_fetch(instr_uj,rd,ins);	
-	imm = get_imm_uj(ins);
-	return pc+rv32i_jal(ctx,rd,imm);
+	RV32I_DECODE_UJ;
+	return pc+rv32i_jal(ctx,_rd,_imm);
     }
     default: goto illegal;
     }

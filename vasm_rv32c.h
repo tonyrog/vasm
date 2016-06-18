@@ -1,7 +1,7 @@
 #ifndef __VASM_RV32C_H__
 #define __VASM_RV32C_H__
 
-#include "vasm_symbol.h"
+#include "vasm.h"
 
 // Instruction symbol index
 enum {
@@ -129,6 +129,6 @@ enum {
 #define FUNCT_C_FSWSP      7  // RV32
 #define FUNCT_C_SDSP       7  // RV64/128
 
-extern int vasm_rv32c_asm_init(symbol_table_t* symtab);
+extern int vasm_rv32c_table_load(vasm_ctx_t* ctx);
 
 #endif

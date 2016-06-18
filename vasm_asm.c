@@ -179,7 +179,6 @@ int asm_reladdr20(vasm_ctx_t* ctx, token_t* tokens, int i, int* imm)
     return asm_imm20(ctx, tokens, i, imm);
 }
 
-
 //
 // instruction format
 // [<label> ':'] [<instruction> [ <operand> (',' <operand> )* ] ]
@@ -218,19 +217,32 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    while(link) {
 		symbol_link_t* nlink = link->next;
 		uint32_t* instr = (uint32_t*) &ctx->rt.mem[link->addr];
-
 		DEBUGF(ctx, "resolve label %s @ %x = %d\n",
-		       tokens[0].name,link->addr, sym->value - link->addr);
+		       tokens[0].name,link->addr, imm);
 
 		switch(*instr & 0x7f) {
 		case OPCODE_BRANCH:
-		    *instr = set_imm_sb(*instr, sym->value - link->addr);
+		    imm = sym->value - link->addr;
+		    *instr = set_imm_sb(*instr, imm);
 		    break;
 		case OPCODE_JAL:
-		    *instr = set_imm_uj(*instr, sym->value - link->addr);
+		    imm = sym->value - link->addr;
+		    *instr = set_imm_uj(*instr, imm);
 		    break;
-		    // fixme: OPCODE_LUI ?
-		    // OPCODE_AUIPC?
+		case OPCODE_LUI:
+		    imm = (reg_t)(sym->value + ctx->rt.mem);
+		    imm >>= 12;
+		    *instr = bitfield_store(instr_u, imm31_12, *instr, imm);
+		    break;
+		case OPCODE_AUIPC:
+		    imm = sym->value - link->addr;
+		    imm >>= 12;
+		    *instr = bitfield_store(instr_u, imm31_12, *instr, imm);
+		    break;
+		default: // must by immediate
+		    imm = (reg_t)(sym->value + ctx->rt.mem); // fixme
+		    *instr = bitfield_store(instr_i, imm11_0, *instr, imm);
+		    break;
 		}
 		symbol_link_free(link);
 		link = nlink;
@@ -244,6 +256,32 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
     // fprintf(stderr, "i=%d, num_tokens=%zu\n", i, num_tokens);
     if (i == num_tokens)
 	return 0;
+
+    if (tokens[i].c == TOKEN_COMMAND) {
+	if (strcmp(tokens[i].name, ".asciiz") == 0) {
+	    size_t n;
+	    if (tokens[i+1].c != TOKEN_STRING)
+		goto syntax_error;
+	    n = strlen(tokens[i+1].name)+1;
+	    printf("STRING ADDRESS = %p\n", ctx->rt.mem+ctx->rt.waddr);
+	    memcpy(ctx->rt.mem+ctx->rt.waddr, tokens[i+1].name, n);
+	    ctx->rt.waddr += n;
+	    // fixme align!
+	    return 0;
+	}
+	else if (strcmp(tokens[i].name, ".ascii") == 0) {
+	    size_t n;
+	    if (tokens[i+1].c != TOKEN_STRING)
+		goto syntax_error;
+	    n = strlen(tokens[i+1].name);
+	    memcpy(ctx->rt.mem+ctx->rt.waddr, tokens[i+1].name, n);
+	    ctx->rt.waddr += n;
+	    // fixme align!
+	    return 0;
+	}
+	else
+	    goto syntax_error;
+    }
 
     if (tokens[i].c != TOKEN_SYMBOL)
 	goto syntax_error;
@@ -318,12 +356,12 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    break;
 	case ASM_IMM_12:
 	    NEXT_ARG;
-	    if ((i = asm_imm12(ctx,tokens,i,&imm)) < 0)
+	    if ((i = asm_reladdr12(ctx,tokens,i,&imm)) < 0)
 		goto syntax_error;
 	    break;
 	case ASM_UIMM_20:  // load upper 20 bits
 	    NEXT_ARG;
-	    if ((i = asm_imm20(ctx,tokens,i,&imm)) < 0)
+	    if ((i = asm_reladdr20(ctx,tokens,i,&imm)) < 0)
 		goto syntax_error;
 	    imm >>= 12;
 	    break;
@@ -342,7 +380,7 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    if (tokens[i].c == '(')
 		i++;
 	    else {
-		if ((i = asm_imm12(ctx,tokens,i,&imm)) < 0)
+		if ((i = asm_reladdr12(ctx,tokens,i,&imm)) < 0)
 		    goto syntax_error;
 		if (tokens[i].c != '(')
 		    goto syntax_error;
