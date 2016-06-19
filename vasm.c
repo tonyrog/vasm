@@ -45,7 +45,7 @@ int vasm_table_load(vasm_ctx_t* ctx)
     
     symbol_table_sort(&ctx->symtab);
     // symbol_table_dump(stdout, &ctx->symtab);
-    symbol_tree_init(&ctx->symtab);
+    // symbol_tree_init(&ctx->symtab);
     return 0;
 }
 

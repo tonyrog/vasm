@@ -11,6 +11,7 @@
 #define SYMBOL_FLAG_ON_HEAP   0x08  // entry is allocated on heap
 #define SYMBOL_FLAG_REG       0x10  // symbol is a register name
 #define SYMBOL_FLAG_INSTR     0x20  // symbol is an instruction name
+#define SYMBOL_FLAG_FREG      0x40  // symbol is a floating point register name
 #define SYMBOL_FLAG_NODE      0x80  // entry is a node
 
 // index = (value >> shl) & mask

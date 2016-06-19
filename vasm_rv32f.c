@@ -4,7 +4,7 @@
 #include "vasm_rv32f.h"
 
 #define SYMREG_FI(i, nm) \
-    [(i)] = { .next = 0, .flags = SYMBOL_FLAG_REG, .index = (i), .name = (nm)  }
+    [(i)] = { .next = 0, .flags = SYMBOL_FLAG_REG|SYMBOL_FLAG_FREG, .index = (i), .name = (nm)  }
 
 symbol_t sym_reg_fi[] =
 {
@@ -48,10 +48,11 @@ char* register_fi_name(int r)
 }
 
 #define SYMREG_FABI(i, nm) \
-    [(i)] = { .next = 0, .flags = SYMBOL_FLAG_REG, .index = (i), .name = (nm)  }
+    [(i)] = { .next = 0, .flags = SYMBOL_FLAG_REG|SYMBOL_FLAG_FREG,\
+	      .index = (i), .name = (nm)  }
 
 #define SYMREG_FABI_IX(i,ix,nm)						\
-    [(i)] = { .next = 0, .flags = SYMBOL_FLAG_REG, .index = (ix), .name = (nm)  }
+    [(i)] = { .next = 0, .flags = SYMBOL_FLAG_REG|SYMBOL_FLAG_FREG, .index = (ix), .name = (nm)  }
 
 symbol_t sym_reg_fabi[] = 
 {
@@ -98,9 +99,17 @@ char* register_fabi_name(int r)
 
 symbol_t sym_instr_rv32f[] =
 {
-    SYM_INSTR_X(add, FORMAT_I_CODE(OPCODE_FLW,0x2),
-		FORMAT_I, FORMAT_I_MASK,
-		ASM_SEQ3(ASM_REG_RD, ASM_REG_RS1, ASM_IMM_12)),
+    // What is the instruction names for rounding modes? and dynamic?
+    SYM_INSTR_NAME_X(fadd_s, "fadd.s", 
+		     FORMAT_R_CODE(OPCODE_FARITH,RNE,FUNCT_FADD_S),
+		     FORMAT_R, FORMAT_R_MASK,
+		     ASM_SEQ3(ASM_REG_FRD, ASM_REG_FRS1, ASM_REG_FRS2)),
+    SYM_INSTR_NAME_X(fsub_s, "fsub.s", 
+		     FORMAT_R_CODE(OPCODE_FARITH,RNE,FUNCT_FSUB_S),
+		     FORMAT_R, FORMAT_R_MASK,
+		     ASM_SEQ3(ASM_REG_FRD, ASM_REG_FRS1, ASM_REG_FRS2)),
+
+
 };
 
 int vasm_rv32f_table_load(vasm_ctx_t* ctx)

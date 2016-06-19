@@ -79,7 +79,6 @@ int asm_reg(vasm_ctx_t* ctx, token_t* tokens, int i, int* reg)
     return -1;
 }
 
-// Note that abi names must be mapped correctly before this is useful
 int asm_creg(vasm_ctx_t* ctx, token_t* tokens, int i, int* reg)
 {
     if (tokens[i].c == TOKEN_SYMBOL) {
@@ -90,6 +89,18 @@ int asm_creg(vasm_ctx_t* ctx, token_t* tokens, int i, int* reg)
 		return i+1;
 	    }
 	    return -1;
+	}
+    }
+    return -1;
+}
+
+int asm_freg(vasm_ctx_t* ctx, token_t* tokens, int i, int* reg)
+{
+    if (tokens[i].c == TOKEN_SYMBOL) {
+	symbol_t* symr = symbol_table_lookup(&ctx->symtab, tokens[i].name);
+	if ((symr != NULL) && ((symr->flags & SYMBOL_FLAG_FREG) != 0)) {
+	    *reg = symr->index;
+	    return i+1;
 	}
     }
     return -1;
@@ -186,7 +197,7 @@ int asm_reladdr20(vasm_ctx_t* ctx, token_t* tokens, int i, int* imm)
 int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 {
     int32_t  imm=0;
-    int      rd=0, rs1=0, rs2=0;
+    int      rd=0, rs1=0, rs2=0, rs3=0;
     int      i, j;
     uint32_t seq;
     symbol_t* sym;
@@ -319,9 +330,19 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    if ((i = asm_creg(ctx,tokens,i,&rd)) < 0)
 		goto syntax_error;
 	    break;
+	case ASM_REG_FRD:
+	    NEXT_ARG;
+	    if ((i = asm_freg(ctx,tokens,i,&rd)) < 0)
+		goto syntax_error;
+	    break;
 	case ASM_REG_RS1:
 	    NEXT_ARG;
 	    if ((i = asm_reg(ctx,tokens,i,&rs1)) < 0)
+		goto syntax_error;
+	    break;
+	case ASM_REG_FRS1:
+	    NEXT_ARG;
+	    if ((i = asm_freg(ctx,tokens,i,&rs1)) < 0)
 		goto syntax_error;
 	    break;
 	case ASM_REG_CRS1:
@@ -334,9 +355,19 @@ int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens)
 	    if ((i = asm_reg(ctx,tokens,i,&rs2)) < 0)
 		goto syntax_error;
 	    break;
+	case ASM_REG_FRS2:
+	    NEXT_ARG;
+	    if ((i = asm_freg(ctx,tokens,i,&rs2)) < 0)
+		goto syntax_error;
+	    break;
 	case ASM_REG_CRS2:
 	    NEXT_ARG;
 	    if ((i = asm_creg(ctx,tokens,i,&rs2)) < 0)
+		goto syntax_error;
+	    break;
+	case ASM_REG_FRS3:
+	    NEXT_ARG;
+	    if ((i = asm_freg(ctx,tokens,i,&rs3)) < 0)
 		goto syntax_error;
 	    break;
 	case ASM_SHAMT_5:

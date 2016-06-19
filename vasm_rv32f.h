@@ -50,6 +50,39 @@ enum {
     INSTR_fsflagsi_SI,
 };
 
-#define OPCODE_FLW 0x7
+#define OPCODE_FLW 0x07
+#define OPCODE_FSW 0x27
+
+#define OPCODE_FMADD_S  0x43
+#define OPCODE_FMSUB_S  0x47
+#define OPCODE_FNMSUB_S 0x4B
+#define OPCODE_FNMADD_S 0x4F
+
+#define OPCODE_FARITH   0x53
+#define FUNCT_FADD_S    0x00
+#define FUNCT_FSUB_S    0x04
+#define FUNCT_FMUL_S    0x08
+#define FUNCT_DIV_S     0x0C
+#define FUNCT_SQRT_S    0x2C  // frs2 = 0
+#define FUNCT_SGN_S     0x10
+#define FUNCT3_SGNJ_S     0x0
+#define FUNCT3_SGNJN_S    0x1
+#define FUNCT3_SGNJX_S    0x2
+#define FUNCT_MINMAX_S  0x14
+#define FUNCT3_MIN_S      0x0
+#define FUNCT3_MAX_S      0x1
+#define FUNCT_FCVT_S    0x60
+#define RS2_FCVT_W_S    0x0   // RS2 = 0
+#define RS2_FCVT_WH_S   0x1   // RS2 = 1
+#define FUNCT_FMV_X_S   0x70  // RS2 = 0
+#define FUNCT_CMP_S     0x50
+#define FUNCT3_FEQ_S    0x2
+#define FUNCT3_FLT_S    0x1
+#define FUNCT3_FLE_S    0x0
+#define FUNCT_FCLASS_S  0x70  // RS2 = 0
+#define FUNCT_FCVT_W    0x64
+#define RS2_FCVT_S_W    0x0
+#define RS2_FCVT_S_WU   0x01
+#define FUNCT_FMV_S_X   0x78  // RS2=0 FUNC3=0
 
 #endif

@@ -37,10 +37,14 @@ enum {
     ASM_END,
     ASM_REG_RD,
     ASM_REG_CRD,
+    ASM_REG_FRD,
     ASM_REG_RS1,
     ASM_REG_CRS1,
+    ASM_REG_FRS1,
     ASM_REG_RS2,
     ASM_REG_CRS2,
+    ASM_REG_FRS2,
+    ASM_REG_FRS3,
     ASM_SHAMT_5,
     ASM_IMM_6,
     ASM_IMM_8,
@@ -76,6 +80,7 @@ enum {
 
 enum {
     FORMAT_R,
+    FORMAT_R4,
     FORMAT_I,
     FORMAT_S,
     FORMAT_SB,
@@ -125,6 +130,18 @@ bit_struct(instr_r,
 	       unsigned_field(rs1, 5);
 	       unsigned_field(rs2, 5);
 	       unsigned_field(funct7, 7);
+	   });
+
+// fadd,fsub,...
+bit_struct(instr_r4,
+	   {
+	       unsigned_field(opcode, 7);
+	       unsigned_field(rd, 5);
+	       unsigned_field(funct3, 3);
+	       unsigned_field(rs1, 5);
+	       unsigned_field(rs2, 5);
+	       unsigned_field(funct2, 2);
+	       unsigned_field(rs3, 5);
 	   });
 
 // addi, slti, sltiu, xori, ori, andi, slli, srli, srai,
@@ -356,6 +373,7 @@ bit_struct(instr_cj, {
 // vasm_asm.c
 
 extern char* register_abi_name(int r);
+extern char* register_fabi_name(int r);
 extern char* register_xi_name(int r);
 extern int assemble(vasm_ctx_t* ctx, token_t* tokens, size_t num_tokens);
 

@@ -32,7 +32,7 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 {
     void* p = (void*) ((uint8_t*)mem+addr);
     int32_t  imm=0;
-    int      rd=0, rs1=0, rs2=0;
+    int      rd=0, rs1=0, rs2=0, rs3=0;
     int      j;
     uint32_t seq;
     symbol_t* sym;
@@ -59,7 +59,9 @@ unsigned_t disasm_instr(FILE* f,symbol_table_t* symtab,
 #endif
     addr1 = addr+4;
 
+#if defined(RV32C)
 decode:
+#endif
     if ((sym = symbol_lookup(symtab, ins)) == NULL) {
 	printf("%08x: %08x ???\n", addr, ins);
 	return addr1;
@@ -75,6 +77,12 @@ decode:
 	rd = bitfield_fetch(instr_r, rd, ins);
 	rs1 = bitfield_fetch(instr_r, rs1, ins);
 	rs2 = bitfield_fetch(instr_r, rs2, ins);	
+	break;
+    case FORMAT_R4:
+	rd = bitfield_fetch(instr_r4, rd, ins);
+	rs1 = bitfield_fetch(instr_r4, rs1, ins);
+	rs2 = bitfield_fetch(instr_r4, rs2, ins);
+	rs3 = bitfield_fetch(instr_r4, rs3, ins);	
 	break;
     case FORMAT_I:
 	rd = bitfield_fetch(instr_i, rd, ins);
@@ -160,6 +168,10 @@ decode:
 	    NEXT_ARG;
 	    fprintf(f, "%s", register_abi_name(rd));
 	    break;
+	case ASM_REG_FRD:
+	    NEXT_ARG;
+	    fprintf(f, "%s", register_fabi_name(rd));
+	    break;
 	case ASM_REG_CRD:
 	    NEXT_ARG;
 	    fprintf(f, "%s", register_abi_name(rd+8));
@@ -172,6 +184,10 @@ decode:
 	    NEXT_ARG;
 	    fprintf(f, "%s", register_abi_name(rs1+8));
 	    break;
+	case ASM_REG_FRS1:
+	    NEXT_ARG;
+	    fprintf(f, "%s", register_fabi_name(rs1));
+	    break;
 	case ASM_REG_RS2:
 	    NEXT_ARG;
 	    fprintf(f, "%s", register_abi_name(rs2));
@@ -179,6 +195,14 @@ decode:
 	case ASM_REG_CRS2:
 	    NEXT_ARG;
 	    fprintf(f, "%s", register_abi_name(rs2+8));
+	    break;
+	case ASM_REG_FRS2:
+	    NEXT_ARG;
+	    fprintf(f, "%s", register_fabi_name(rs2));
+	    break;
+	case ASM_REG_FRS3:
+	    NEXT_ARG;
+	    fprintf(f, "%s", register_fabi_name(rs3));
 	    break;
 	case ASM_SHAMT_5:
 	    NEXT_ARG;
